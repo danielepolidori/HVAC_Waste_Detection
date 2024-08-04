@@ -37,6 +37,10 @@ float tempValue;
 //bool resultMQTT;
 
 
+/* CoAP observe */
+Thing::CoAP::IFunctionalResource* risorsa_foo;   // Puntatore a una risorsa
+
+
 
 void connect() {
   
@@ -79,9 +83,8 @@ void setup() {
   //Configure our server to use our packet handler (It will use UDP)
   server.SetPacketProvider(udpProvider);
 
-  //Create an resource called "temperatura_interna"
-  //server.CreateResource("temperatura_interna", Thing::CoAP::ContentFormat::TextPlain, true)   // True means that this resource is observable
-  server.CreateResource("temperatura_interna", Thing::CoAP::ContentFormat::TextPlain, false)    //True means that this resource is observable
+  //Create a resource called "temperatura_interna"
+  *risorsa_foo = server.CreateResource("temperatura_interna", Thing::CoAP::ContentFormat::TextPlain, true)    //True means that this resource is observable
     .OnGet([](Thing::CoAP::Request & request) {                       // We are here configuring telling our server that, when we receive a "GET" request to this endpoint, run the the following code
 
       Serial.println("GET Request received for endpoint 'temperatura_interna'");
@@ -102,6 +105,25 @@ void setup() {
 
 
 void loop() {
-
+  
   server.Process();
+
+
+
+  /* CoAP observe */
+
+  delay(5000);
+  //delay(DEFAULT_SENSE_FREQUENCY);
+  
+  float value = dht_int.readTemperature();
+  String message = String(value);
+  const char* payload = message.c_str();
+  Serial.println(payload);
+
+  // DA AGGIUNGERE: if valore temperatura e' cambiato... (... notifico gli observer)
+  if (risorsa_foo != NULL) {
+    
+    //server.NotifyObservers(risorsa_foo, Thing::CoAP::Status::Content(payload));
+    risorsa_foo->ObservableChanged(Thing::CoAP::Status::Content(payload));
+  }
 }
