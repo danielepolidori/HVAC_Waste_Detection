@@ -37,12 +37,13 @@ Thing::CoAP::ESP::UDPPacketProvider udpProvider;
 float tempInt;      // Aggiornata periodicamente raccogliendo nuovi dati dal sensore DHT interno
 //float tempEst;    // Aggiornata periodicamente raccogliendo nuovi dati dal sensore DHT esterno
 
-//int samplingRate = DEFAULT_SENSE_FREQUENCY;   // Intervallo tra le letture dei sensori
+int samplingRate = DEFAULT_SENSE_FREQUENCY;   // Intervallo tra le letture dei sensori
 
 //bool resultMQTT;
 
 
 
+// WiFi
 void connect() {
   
   WiFi.begin(SSID, PASS);
@@ -80,11 +81,11 @@ void setup() {
   resultMQTT = false;
 */
 
-  // Inizializzo il valore
-  /*tempInt = dht_int.readTemperature();
-  Serial.println("Acquisito nuovo valore dal sensore DHT 'temperatura_interna'");
+  // Inizializzo il valore della temperatura registrata
+  tempInt = dht_int.readTemperature();
+  Serial.println("Acquisito un nuovo valore dal sensore DHT 'temperatura_interna'");
   Serial.println(tempInt);
-  Serial.println("");*/
+  Serial.println("");
 
 
   /* CoAP */
@@ -100,8 +101,8 @@ void setup() {
       Serial.println("GET Request received for endpoint 'temperatura_interna'");
 
       //Read the state of our dht
-      float value = dht_int.readTemperature();
-      //float value = tempInt;
+      //float value = dht_int.readTemperature();
+      float value = tempInt;
       String message = String(value);
       const char* payload = message.c_str();
       Serial.println(payload);
@@ -118,12 +119,12 @@ void setup() {
 
 void loop() {
 
-  /*tempInt = dht_int.readTemperature();
-  Serial.println("Acquisito nuovo valore dal sensore DHT 'temperatura_interna'");
+  delay(samplingRate);
+
+  tempInt = dht_int.readTemperature();
+  Serial.println("Acquisito un nuovo valore dal sensore DHT 'temperatura_interna'");
   Serial.println(tempInt);
-  Serial.println("");*/
+  Serial.println("");
 
   server.Process();
-
-  //delay(samplingRate);
 }
