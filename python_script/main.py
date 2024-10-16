@@ -17,8 +17,8 @@ async def main():
 
     while(True):
 
-        #req = Message(code=GET, uri='coap://130.136.2.70:5683/temperatura_interna')
-        req = Message(code=GET, uri='coap://192.168.96.4:5683/temperatura_interna')
+        #req = Message(code=GET, uri='coap://192.168.119.4:5683/temperatura_interna')
+        req = Message(code=GET, uri='coap://192.168.236.4/temperatura_interna')
 
         try:
             response = await protocol.request(req).response
@@ -27,9 +27,10 @@ async def main():
             print(e)
         else:
             # “2.05 Content” is a successful message (is the rough equivalent of HTTP’s “200 OK”)
-            print('Result: %s\n%r' % (response.code, response.payload.decode("utf-8")))
+            print('Result: %s\n%r\n' % (response.code, response.payload.decode("utf-8")))
 
-        time.sleep(7)
+        time.sleep(2)   # numero temperature ricevute: 9, [68]          # [hotspot vicino]
+        #time.sleep(5)    # numero temperature ricevute: 5, 14, [24, 19]
 
 if __name__ == "__main__":
         asyncio.run(main())

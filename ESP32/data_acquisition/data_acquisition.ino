@@ -32,8 +32,13 @@ Thing::CoAP::Server server;
 Thing::CoAP::ESP::UDPPacketProvider udpProvider;
 
 
-float tempValue;
-//float humValue;
+// Variabili globali
+
+float tempInt;      // Aggiornata periodicamente raccogliendo nuovi dati dal sensore DHT interno
+//float tempEst;    // Aggiornata periodicamente raccogliendo nuovi dati dal sensore DHT esterno
+
+//int samplingRate = DEFAULT_SENSE_FREQUENCY;   // Intervallo tra le letture dei sensori
+
 //bool resultMQTT;
 
 
@@ -49,8 +54,10 @@ void connect() {
   }
   
   delay(5000);
+  Serial.println("");
   Serial.println("WiFi connected");
   Serial.println(WiFi.localIP());
+  Serial.println("");
 }
 
 
@@ -64,7 +71,7 @@ void setup() {
   dht_est.begin();
   delay(2000);
   
-  connect();
+  connect();    // WiFi
   /*
   clientMQTT.setClient(clientWiFi);
   clientMQTT.setServer(IP_MQTT_SERVER, 1883);
@@ -72,6 +79,12 @@ void setup() {
   
   resultMQTT = false;
 */
+
+  // Inizializzo il valore
+  /*tempInt = dht_int.readTemperature();
+  Serial.println("Acquisito nuovo valore dal sensore DHT 'temperatura_interna'");
+  Serial.println(tempInt);
+  Serial.println("");*/
 
 
   /* CoAP */
@@ -88,9 +101,11 @@ void setup() {
 
       //Read the state of our dht
       float value = dht_int.readTemperature();
+      //float value = tempInt;
       String message = String(value);
       const char* payload = message.c_str();
       Serial.println(payload);
+      Serial.println("");
 
       //Return the current state of our dht
       return Thing::CoAP::Status::Content(payload);
@@ -103,5 +118,12 @@ void setup() {
 
 void loop() {
 
+  /*tempInt = dht_int.readTemperature();
+  Serial.println("Acquisito nuovo valore dal sensore DHT 'temperatura_interna'");
+  Serial.println(tempInt);
+  Serial.println("");*/
+
   server.Process();
+
+  //delay(samplingRate);
 }
