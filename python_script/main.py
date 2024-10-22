@@ -17,9 +17,10 @@ async def main():
 
     while(True):
 
-        #req = Message(code=GET, uri='coap://192.168.119.4:5683/temperatura_interna')
-        #req = Message(code=GET, uri='coap://192.168.191.4/temperatura_interna')
-        req = Message(code=GET, uri='coap://192.168.191.4/temperatura_esterna')
+        #req = Message(code=GET, uri='coap://192.168.130.4/temperatura_interna')
+        req = Message(mtype=NON, code=GET, uri='coap://192.168.130.4/temperatura_interna')      # mtype=NON: request/response using non confirmable messages
+
+        #req = Message(code=GET, uri='coap://192.168.137.4/temperatura_esterna')
 
         try:
             response = await protocol.request(req).response
@@ -30,7 +31,7 @@ async def main():
             # “2.05 Content” is a successful message (is the rough equivalent of HTTP’s “200 OK”)
             print('Result: %s\n%r\n' % (response.code, response.payload.decode("utf-8")))
 
-        time.sleep(2)   # numero temperature ricevute: 9, [68] -- [2, 5, 3 (10 GET), 1 (3), 4 (9), 2 (8)]          # [hotspot vicino]
+        time.sleep(2)   # numero temperature ricevute: 9, [68] -- [2, 5, 3 (10 GET), 1 (3), 4 (9), 2 (8), 4], 37+, 12+, ~250+          # [hotspot vicino]
         #time.sleep(5)      # 5, 14, [24, 19] --
         #time.sleep(8)      # -- [1 (4)]
 
