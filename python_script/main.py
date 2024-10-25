@@ -14,10 +14,10 @@ logging.basicConfig(level=logging.INFO)
 
 async def main():
 
-    ip_coap_server = "192.168.154.4"    # IP dell'ESP
+    ip_coap_server = "192.168.3.4"    # IP dell'ESP
 
-    topic_coap_temperatura_interna = "temperatura_interna"
-    topic_coap_temperatura_esterna = "temperatura_esterna"
+    topicCoap_temperaturaInterna = "temperatura_interna"
+    topicCoap_temperaturaEsterna = "temperatura_esterna"
 
 
     protocol = await Context.create_client_context()
@@ -30,37 +30,37 @@ async def main():
         # Interna
 
         # mtype=NON:  request/response using non confirmable messages
-        req = Message(mtype=NON, code=GET, uri="coap://" + ip_coap_server + "/" + topic_coap_temperatura_interna)
+        req_temperaturaInterna = Message(mtype=NON, code=GET, uri="coap://" + ip_coap_server + "/" + topicCoap_temperaturaInterna)
 
-        print("[" + datetime.datetime.now().strftime('%H:%M:%S') + "]  Sending GET request for endpoint '" + topic_coap_temperatura_interna + "'...\n")
+        print("[" + datetime.datetime.now().strftime('%H:%M:%S') + "]  Sending GET request for endpoint '" + topicCoap_temperaturaInterna + "'...\n")
 
         try:
-            # wait until the response is ready
-            response = await protocol.request(req).response
+            # Wait until the response is ready
+            response_temperaturaInterna = await protocol.request(req_temperaturaInterna).response
         except Exception as e:
-            print("Failed to fetch resource for endpoint '" + topic_coap_temperatura_interna + "':")
+            print("Failed to fetch resource for endpoint '" + topicCoap_temperaturaInterna + "':")
             print(e)
         else:
             # “2.05 Content” is a successful message (is the rough equivalent of HTTP’s “200 OK”)
-            print("[%s]  RESULT for endpoint '%s':\n(%s)  %r\n" % (datetime.datetime.now().strftime('%H:%M:%S'), topic_coap_temperatura_interna, response.code, response.payload.decode("utf-8")))
+            print("[%s]  RESULT for endpoint '%s':\n(%s)  %r\n" % (datetime.datetime.now().strftime('%H:%M:%S'), topicCoap_temperaturaInterna, response_temperaturaInterna.code, response_temperaturaInterna.payload.decode("utf-8")))
 
 
         # Esterna
 
         # mtype=NON:  request/response using non confirmable messages
-        req = Message(mtype=NON, code=GET, uri="coap://" + ip_coap_server + "/" + topic_coap_temperatura_esterna)
+        req_temperaturaEsterna = Message(mtype=NON, code=GET, uri="coap://" + ip_coap_server + "/" + topicCoap_temperaturaEsterna)
 
-        print("[" + datetime.datetime.now().strftime('%H:%M:%S') + "]  Sending GET request for endpoint '" + topic_coap_temperatura_esterna + "'...\n")
+        print("[" + datetime.datetime.now().strftime('%H:%M:%S') + "]  Sending GET request for endpoint '" + topicCoap_temperaturaEsterna + "'...\n")
 
         try:
-            # wait until the response is ready
-            response = await protocol.request(req).response
+            # Wait until the response is ready
+            response_temperaturaEsterna = await protocol.request(req_temperaturaEsterna).response
         except Exception as e:
-            print("Failed to fetch resource for endpoint '" + topic_coap_temperatura_esterna + "':")
+            print("Failed to fetch resource for endpoint '" + topicCoap_temperaturaEsterna + "':")
             print(e)
         else:
             # “2.05 Content” is a successful message (is the rough equivalent of HTTP’s “200 OK”)
-            print("[%s]  RESULT for endpoint '%s':\n(%s)  %r\n" % (datetime.datetime.now().strftime('%H:%M:%S'), topic_coap_temperatura_esterna, response.code, response.payload.decode("utf-8")))
+            print("[%s]  RESULT for endpoint '%s':\n(%s)  %r\n" % (datetime.datetime.now().strftime('%H:%M:%S'), topicCoap_temperaturaEsterna, response_temperaturaEsterna.code, response_temperaturaEsterna.payload.decode("utf-8")))
 
 
         time.sleep(2)
