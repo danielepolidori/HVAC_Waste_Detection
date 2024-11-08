@@ -4,7 +4,9 @@ import time
 import datetime
 
 from pickle import GET
-from aiocoap import *
+from aiocoap import *                   # CoAP
+
+import paho.mqtt.publish as publish     # MQTT
 
 
 
@@ -14,7 +16,7 @@ logging.basicConfig(level=logging.INFO)
 
 async def main():
 
-    ip_coap_server = "192.168.3.4"    # IP dell'ESP
+    ip_coap_server = "192.168.239.4"    # Indirizzo IP dell'ESP
 
     topicCoap_temperaturaInterna = "temperatura_interna"
     topicCoap_temperaturaEsterna = "temperatura_esterna"
@@ -23,6 +25,10 @@ async def main():
     protocol = await Context.create_client_context()
 
     while True:
+
+        publish.single("sampling_rate", 3000, hostname="localhost")     # localhost: Indirizzo IP del mio pc con mosquitto
+
+
 
         # Chiedo i valori delle temperature al server ESP #
 

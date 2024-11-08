@@ -1,7 +1,8 @@
 #include <DHT.h>
 #include <WiFi.h>
-//#include <PubSubClient.h>   // library for MQTT messaging
+
 #include <Thing.CoAP.h>     // CoAP
+#include <PubSubClient.h>   // MQTT
 
 
 
@@ -13,9 +14,6 @@ const int DEFAULT_SENSE_FREQUENCY = 5000;
 const char* WIFI_SSID = "OPPO A54 5G dp";
 const char* WIFI_PASS = "abcd1234";
 
-/*const char* MQTT_USER = "iot2020";
-const char* MQTT_PASSWD = "mqtt2020*";*/
-
 const char* TOPIC_TEMPERATURA_INTERNA = "temperatura_interna";
 const char* TOPIC_TEMPERATURA_ESTERNA = "temperatura_esterna";
 
@@ -23,35 +21,34 @@ const char* TOPIC_TEMPERATURA_ESTERNA = "temperatura_esterna";
 DHT dht_int(DHT_INTERNO_PIN, DHT22);
 DHT dht_est(DHT_ESTERNO_PIN, DHT22);
 
-//PubSubClient clientMQTT; 
-WiFiClient clientWiFi;
-//const char* IP_MQTT_SERVER = "130.136.2.70";
-
 /* CoAP */
 //Declare our CoAP server and the packet handler
-Thing::CoAP::Server server;
+Thing::CoAP::Server serverCoAP;
 Thing::CoAP::ESP::UDPPacketProvider udpProvider;
 
+/* MQTT */
+PubSubClient clientMQTT;
+WiFiClient clientWiFi;
+const char* IP_MQTT_BROKER = "192.168.239.12";    // Indirizzo IP del mio pc con mosquitto
 
-// Variabili globali
+
+/* Variabili globali */
 
 float tempInterna;      // Aggiornata periodicamente raccogliendo nuovi dati dal sensore DHT interno
 float tempEsterna;      // Aggiornata periodicamente raccogliendo nuovi dati dal sensore DHT esterno
 
 int samplingRate = DEFAULT_SENSE_FREQUENCY;   // Intervallo tra le letture dei sensori
 
-//bool resultMQTT;
-
 
 
 // WiFi
-void connect() {
+void connectWiFi() {
   
   WiFi.begin(WIFI_SSID, WIFI_PASS);
 
   while (WiFi.status() != WL_CONNECTED) {
   
-    Serial.println("Connection attempt");
+    Serial.println("WiFi connection attempt...");
     delay(500);
   }
   
@@ -60,6 +57,54 @@ void connect() {
   Serial.println("WiFi connected");
   Serial.println(WiFi.localIP());
   Serial.println("");
+}
+
+
+/* MQTT */
+
+// Viene invocata ogni volta che l'ESP riceve un messaggio tramite MQTT
+void callbackMQTT(char* topic, byte* payload, unsigned int length) {
+
+  Serial.print("MQTT message arrived [");
+  Serial.print(topic);
+  Serial.print("] ");
+  
+  for (int i = 0; i < length; i++) {
+
+    Serial.print((char)payload[i]);
+  }
+
+  Serial.println();
+  Serial.println("");
+}
+
+// Connessione MQTT
+void reconnectMQTT() {
+
+  // Loop until we're reconnected
+  while (!clientMQTT.connected()) {
+
+    Serial.print("Attempting MQTT connection...");
+
+    // Attempt to connect
+    if (clientMQTT.connect("MyESP32Client")) {
+
+      Serial.println(" Connected");
+      Serial.println("");
+
+      // ... and resubscribe
+      clientMQTT.subscribe("sampling_rate");
+    }
+    else {
+
+      Serial.print("failed, rc=");
+      Serial.print(clientMQTT.state());
+      Serial.println(" try again in 5 seconds");
+
+      // Wait 5 seconds before retrying
+      delay(5000);
+    }
+  }
 }
 
 
@@ -73,16 +118,17 @@ void setup() {
   dht_est.begin();
   delay(2000);
   
-  connect();    // WiFi
-  /*
-  clientMQTT.setClient(clientWiFi);
-  clientMQTT.setServer(IP_MQTT_SERVER, 1883);
-  clientMQTT.setBufferSize(400);
-  
-  resultMQTT = false;
-*/
+  connectWiFi();    // WiFi
 
-  // Inizializzo i valori delle temperature registrate
+
+  // MQTT
+  clientMQTT.setClient(clientWiFi);
+  clientMQTT.setServer(IP_MQTT_BROKER, 1883);
+  clientMQTT.setCallback(callbackMQTT);
+  clientMQTT.setBufferSize(400);
+
+
+  /* Inizializzo i valori delle temperature registrate */
 
   // Interna
   tempInterna = dht_int.readTemperature();
@@ -104,10 +150,10 @@ void setup() {
   /* CoAP */
   
   // Configure our server to use our packet handler (It will use UDP)
-  server.SetPacketProvider(udpProvider);
+  serverCoAP.SetPacketProvider(udpProvider);
 
   // Create a resource called "temperatura_interna"
-  server.CreateResource(TOPIC_TEMPERATURA_INTERNA, Thing::CoAP::ContentFormat::TextPlain, false)    // True means that this resource is observable
+  serverCoAP.CreateResource(TOPIC_TEMPERATURA_INTERNA, Thing::CoAP::ContentFormat::TextPlain, false)    // True means that this resource is observable
     .OnGet([](Thing::CoAP::Request & request) {                       // We are here configuring telling our server that, when we receive a "GET" request to this endpoint, run the following code
 
       Serial.print("GET request received for endpoint '");
@@ -126,7 +172,7 @@ void setup() {
     });
 
   // Create a resource called "temperatura_esterna"
-  server.CreateResource(TOPIC_TEMPERATURA_ESTERNA, Thing::CoAP::ContentFormat::TextPlain, false)    // True means that this resource is observable
+  serverCoAP.CreateResource(TOPIC_TEMPERATURA_ESTERNA, Thing::CoAP::ContentFormat::TextPlain, false)    // True means that this resource is observable
     .OnGet([](Thing::CoAP::Request & request) {                       // We are here configuring telling our server that, when we receive a "GET" request to this endpoint, run the following code
 
       Serial.print("GET request received for endpoint '");
@@ -144,12 +190,23 @@ void setup() {
       return Thing::CoAP::Status::Content(payload);
     });
 
-  server.Start();
+  serverCoAP.Start();
 }
 
 
 
 void loop() {
+
+  // MQTT  
+
+  if (!clientMQTT.connected()) {
+
+    reconnectMQTT();
+  }
+
+  clientMQTT.loop();
+
+
 
   delay(samplingRate);
 
@@ -173,5 +230,5 @@ void loop() {
   Serial.println("");
 
 
-  server.Process();     // CoAP
+  serverCoAP.Process();     // CoAP
 }
