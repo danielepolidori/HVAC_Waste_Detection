@@ -29,7 +29,7 @@ Thing::CoAP::ESP::UDPPacketProvider udpProvider;
 /* MQTT */
 PubSubClient clientMQTT;
 WiFiClient clientWiFi;
-const char* IP_MQTT_BROKER = "192.168.239.12";    // Indirizzo IP del mio pc con mosquitto
+const char* IP_MQTT_BROKER = "192.168.195.12";    // Indirizzo IP del mio pc con mosquitto
 
 
 /* Variabili globali */
@@ -38,6 +38,13 @@ float tempInterna;      // Aggiornata periodicamente raccogliendo nuovi dati dal
 float tempEsterna;      // Aggiornata periodicamente raccogliendo nuovi dati dal sensore DHT esterno
 
 int samplingRate = DEFAULT_SENSE_FREQUENCY;   // Intervallo tra le letture dei sensori
+
+
+// Generally, you should use "unsigned long" for variables that hold time
+// The value will quickly become too large for an int to store
+unsigned long previousMillis = 0;  // will store last time temperature was read
+
+long interval = 10000;  // interval at which to read new temperature (milliseconds)
 
 
 
@@ -76,6 +83,9 @@ void callbackMQTT(char* topic, byte* payload, unsigned int length) {
 
   Serial.println();
   Serial.println("");
+
+
+  interval = 15000;  //tmp
 }
 
 // Connessione MQTT
@@ -197,21 +207,30 @@ void setup() {
 
 void loop() {
 
-  // MQTT  
-
-  if (!clientMQTT.connected()) {
-
-    reconnectMQTT();
-  }
-
-  clientMQTT.loop();
-
-
-
   delay(samplingRate);
 
+  // check to see if it's time to blink the LED; that is, if the difference
+  // between the current time and last time you blinked the LED is bigger than
+  // the interval at which you want to blink the LED.
+  unsigned long currentMillis = millis();
 
-  // Leggo i valori delle temperature dai DHT
+  if (currentMillis - previousMillis >= interval) {
+
+    // save the last time you blinked the LED
+    previousMillis = currentMillis;
+
+    // Esterna
+    tempEsterna = dht_est.readTemperature();
+    Serial.print("READ new value from DHT sensor '");
+    Serial.print(TOPIC_TEMPERATURA_ESTERNA);
+    Serial.println("'");
+    Serial.println(tempEsterna);
+    Serial.println("");
+  }
+  
+
+
+  /* Leggo i valori delle temperature dai DHT */
 
   // Interna
   tempInterna = dht_int.readTemperature();
@@ -222,13 +241,23 @@ void loop() {
   Serial.println("");
 
   // Esterna
-  tempEsterna = dht_est.readTemperature();
+  /*tempEsterna = dht_est.readTemperature();
   Serial.print("READ new value from DHT sensor '");
   Serial.print(TOPIC_TEMPERATURA_ESTERNA);
   Serial.println("'");
   Serial.println(tempEsterna);
-  Serial.println("");
+  Serial.println("");*/
 
 
   serverCoAP.Process();     // CoAP
+
+
+  /* MQTT */
+
+  if (!clientMQTT.connected()) {
+
+    reconnectMQTT();
+  }
+
+  clientMQTT.loop();
 }
