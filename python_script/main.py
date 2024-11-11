@@ -16,17 +16,27 @@ logging.basicConfig(level=logging.INFO)
 
 async def main():
 
-    ip_coap_server = "192.168.195.4"    # Indirizzo IP dell'ESP
+    ip_coap_server = "192.168.201.4"    # Indirizzo IP dell'ESP
 
     topicCoap_temperaturaInterna = "temperatura_interna"
     topicCoap_temperaturaEsterna = "temperatura_esterna"
+
+    topicMqtt_readTemperaturaInterna = "read_dht_interno"
+    topicMqtt_samplingRateTemperaturaInterna = "sampling_rate_dht_interno"
+
+    topicMqtt_readTemperaturaEsterna = "read_dht_esterno"
+    topicMqtt_samplingRateTemperaturaEsterna = "sampling_rate_dht_esterno"
 
 
     protocol = await Context.create_client_context()
 
     while True:
 
-        publish.single("sampling_rate", 3000, hostname="localhost")     # localhost: Indirizzo IP del mio pc con mosquitto
+        # localhost: Indirizzo IP del mio pc con mosquitto
+        publish.single("read_dht_interno", 1, hostname="localhost")
+        publish.single("sampling_rate_dht_interno", 10000, hostname="localhost")
+        # ...
+        # PRINT...
 
 
 
@@ -69,7 +79,7 @@ async def main():
             print("[%s]  RESULT for endpoint '%s':\n(%s)  %r\n" % (datetime.datetime.now().strftime('%H:%M:%S'), topicCoap_temperaturaEsterna, response_temperaturaEsterna.code, response_temperaturaEsterna.payload.decode("utf-8")))
 
 
-        time.sleep(2)
+        time.sleep(5)
 
 if __name__ == "__main__":
         asyncio.run(main())

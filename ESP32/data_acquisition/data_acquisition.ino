@@ -14,8 +14,15 @@ const long DEFAULT_SENSE_FREQUENCY = 5000;
 const char* WIFI_SSID = "OPPO A54 5G dp";
 const char* WIFI_PASS = "abcd1234";
 
-const char* TOPIC_TEMPERATURA_INTERNA = "temperatura_interna";
-const char* TOPIC_TEMPERATURA_ESTERNA = "temperatura_esterna";
+// Topic CoAP
+const char* TOPIC_COAP_TEMPERATURA_INTERNA = "temperatura_interna";
+const char* TOPIC_COAP_TEMPERATURA_ESTERNA = "temperatura_esterna";
+
+// Topic MQTT
+const char* TOPIC_MQTT_READ_DHT_INTERNO = "read_dht_interno";
+const char* TOPIC_MQTT_SAMPLING_RATE_DHT_INTERNO = "sampling_rate_dht_interno";
+const char* TOPIC_MQTT_READ_DHT_ESTERNO = "read_dht_esterno";
+const char* TOPIC_MQTT_SAMPLING_RATE_DHT_ESTERNO = "sampling_rate_dht_esterno";
 
 
 DHT dht_int(DHT_INTERNO_PIN, DHT22);
@@ -29,7 +36,7 @@ Thing::CoAP::ESP::UDPPacketProvider udpProvider;
 /* MQTT */
 PubSubClient clientMQTT;
 WiFiClient clientWiFi;
-const char* IP_MQTT_BROKER = "192.168.195.12";    // Indirizzo IP del mio pc con mosquitto
+const char* IP_MQTT_BROKER = "192.168.201.12";    // Indirizzo IP del mio pc con mosquitto
 
 
 /* Variabili globali */
@@ -85,8 +92,25 @@ void callbackMQTT(char* topic, byte* payload, unsigned int length) {
   Serial.println("");
 
 
-  //interval = 15000;  //tmp
-  // ...
+  if (strcmp(topic, TOPIC_MQTT_READ_DHT_INTERNO) == 0) {    // Restituisce 0 quando le due stringhe sono uguali
+
+    reading_dhtInterno = (bool)payload;
+  }
+  else if (strcmp(topic, TOPIC_MQTT_SAMPLING_RATE_DHT_INTERNO) == 0) {
+
+      samplingRate_dhtInterno = (long)payload;
+  }
+  else if (strcmp(topic, TOPIC_MQTT_READ_DHT_ESTERNO) == 0) {
+
+      reading_dhtEsterno = (bool)payload;
+  }
+  else if (strcmp(topic, TOPIC_MQTT_SAMPLING_RATE_DHT_ESTERNO) == 0) {
+
+      samplingRate_dhtEsterno = (long)payload;
+  }
+  else
+      Serial.println("ERRORE: Topic MQTT non valido.");
+      Serial.println();
 }
 
 // Connessione MQTT
@@ -95,7 +119,7 @@ void reconnectMQTT() {
   // Loop until we're reconnected
   while (!clientMQTT.connected()) {
 
-    Serial.print("Attempting MQTT connection...");
+    Serial.print("MQTT connection attempt...");
 
     // Attempt to connect
     if (clientMQTT.connect("MyESP32Client")) {
@@ -104,13 +128,16 @@ void reconnectMQTT() {
       Serial.println("");
 
       // ... and resubscribe
-      clientMQTT.subscribe("sampling_rate");
+      clientMQTT.subscribe(TOPIC_MQTT_READ_DHT_INTERNO);
+      clientMQTT.subscribe(TOPIC_MQTT_SAMPLING_RATE_DHT_INTERNO);
+      clientMQTT.subscribe(TOPIC_MQTT_READ_DHT_ESTERNO);
+      clientMQTT.subscribe(TOPIC_MQTT_SAMPLING_RATE_DHT_ESTERNO);
     }
     else {
 
-      Serial.print("failed, rc=");
+      Serial.print(" Failed (rc=");
       Serial.print(clientMQTT.state());
-      Serial.println(" try again in 5 seconds");
+      Serial.println(") Try again in 5 seconds");
 
       // Wait 5 seconds before retrying
       delay(5000);
@@ -144,7 +171,7 @@ void setup() {
   // Interna
   tempInterna = dht_int.readTemperature();
   Serial.print("READ new value from DHT sensor '");
-  Serial.print(TOPIC_TEMPERATURA_INTERNA);
+  Serial.print(TOPIC_COAP_TEMPERATURA_INTERNA);
   Serial.println("'");
   Serial.println(tempInterna);
   Serial.println("");
@@ -152,7 +179,7 @@ void setup() {
   // Esterna
   tempEsterna = dht_est.readTemperature();
   Serial.print("READ new value from DHT sensor '");
-  Serial.print(TOPIC_TEMPERATURA_ESTERNA);
+  Serial.print(TOPIC_COAP_TEMPERATURA_ESTERNA);
   Serial.println("'");
   Serial.println(tempEsterna);
   Serial.println("");
@@ -164,11 +191,11 @@ void setup() {
   serverCoAP.SetPacketProvider(udpProvider);
 
   // Create a resource called "temperatura_interna"
-  serverCoAP.CreateResource(TOPIC_TEMPERATURA_INTERNA, Thing::CoAP::ContentFormat::TextPlain, false)    // True means that this resource is observable
+  serverCoAP.CreateResource(TOPIC_COAP_TEMPERATURA_INTERNA, Thing::CoAP::ContentFormat::TextPlain, false)    // True means that this resource is observable
     .OnGet([](Thing::CoAP::Request & request) {                       // We are here configuring telling our server that, when we receive a "GET" request to this endpoint, run the following code
 
-      Serial.print("GET request received for endpoint '");
-      Serial.print(TOPIC_TEMPERATURA_INTERNA);
+      Serial.print("CoAP GET request received for endpoint '");
+      Serial.print(TOPIC_COAP_TEMPERATURA_INTERNA);
       Serial.println("'");
 
       // Legge l'ultimo valore della temperatura ottenuto dal DHT
@@ -183,11 +210,11 @@ void setup() {
     });
 
   // Create a resource called "temperatura_esterna"
-  serverCoAP.CreateResource(TOPIC_TEMPERATURA_ESTERNA, Thing::CoAP::ContentFormat::TextPlain, false)    // True means that this resource is observable
+  serverCoAP.CreateResource(TOPIC_COAP_TEMPERATURA_ESTERNA, Thing::CoAP::ContentFormat::TextPlain, false)    // True means that this resource is observable
     .OnGet([](Thing::CoAP::Request & request) {                       // We are here configuring telling our server that, when we receive a "GET" request to this endpoint, run the following code
 
-      Serial.print("GET request received for endpoint '");
-      Serial.print(TOPIC_TEMPERATURA_ESTERNA);
+      Serial.print("CoAP GET request received for endpoint '");
+      Serial.print(TOPIC_COAP_TEMPERATURA_ESTERNA);
       Serial.println("'");
 
       // Legge l'ultimo valore della temperatura ottenuto dal DHT
@@ -226,7 +253,7 @@ void loop() {
   
       tempInterna = dht_int.readTemperature();
       Serial.print("READ new value from DHT sensor '");
-      Serial.print(TOPIC_TEMPERATURA_INTERNA);
+      Serial.print(TOPIC_COAP_TEMPERATURA_INTERNA);
       Serial.println("'");
       Serial.println(tempInterna);
       Serial.println("");
@@ -249,7 +276,7 @@ void loop() {
   
       tempEsterna = dht_est.readTemperature();
       Serial.print("READ new value from DHT sensor '");
-      Serial.print(TOPIC_TEMPERATURA_ESTERNA);
+      Serial.print(TOPIC_COAP_TEMPERATURA_ESTERNA);
       Serial.println("'");
       Serial.println(tempEsterna);
       Serial.println("");
