@@ -8,7 +8,7 @@
 
 const int DHT_INTERNO_PIN = 4;
 const int DHT_ESTERNO_PIN = 18;
-const int DEFAULT_SENSE_FREQUENCY = 5000;
+const long DEFAULT_SENSE_FREQUENCY = 5000;
 
 // WiFi data
 const char* WIFI_SSID = "OPPO A54 5G dp";
@@ -34,17 +34,17 @@ const char* IP_MQTT_BROKER = "192.168.195.12";    // Indirizzo IP del mio pc con
 
 /* Variabili globali */
 
-float tempInterna;      // Aggiornata periodicamente raccogliendo nuovi dati dal sensore DHT interno
-float tempEsterna;      // Aggiornata periodicamente raccogliendo nuovi dati dal sensore DHT esterno
+// Temperatura interna
+float tempInterna = 0;                                    // Aggiornata periodicamente raccogliendo nuovi dati dal sensore DHT interno
+bool reading_dhtInterno = false; //true;                  // Start/stop the sensor reading
+long samplingRate_dhtInterno = DEFAULT_SENSE_FREQUENCY;   // Intervallo tra le letture del sensore
+unsigned long previousMillis_dhtInterno = 0;              // Will store last time temperature was read      // Generally, you should use "unsigned long" for variables that hold time (the value will quickly become too large for an int to store)
 
-int samplingRate = DEFAULT_SENSE_FREQUENCY;   // Intervallo tra le letture dei sensori
-
-
-// Generally, you should use "unsigned long" for variables that hold time
-// The value will quickly become too large for an int to store
-unsigned long previousMillis = 0;  // will store last time temperature was read
-
-long interval = 10000;  // interval at which to read new temperature (milliseconds)
+// Temperatura esterna
+float tempEsterna = 0;                                    // Aggiornata periodicamente raccogliendo nuovi dati dal sensore DHT esterno
+bool reading_dhtEsterno = false; //true;                  // Start/stop the sensor reading
+long samplingRate_dhtEsterno = DEFAULT_SENSE_FREQUENCY;   // Intervallo tra le letture del sensore
+unsigned long previousMillis_dhtEsterno = 0;              // Will store last time temperature was read      // Generally, you should use "unsigned long" for variables that hold time (the value will quickly become too large for an int to store)
 
 
 
@@ -85,7 +85,8 @@ void callbackMQTT(char* topic, byte* payload, unsigned int length) {
   Serial.println("");
 
 
-  interval = 15000;  //tmp
+  //interval = 15000;  //tmp
+  // ...
 }
 
 // Connessione MQTT
@@ -207,46 +208,54 @@ void setup() {
 
 void loop() {
 
-  delay(samplingRate);
-
-  // check to see if it's time to blink the LED; that is, if the difference
-  // between the current time and last time you blinked the LED is bigger than
-  // the interval at which you want to blink the LED.
-  unsigned long currentMillis = millis();
-
-  if (currentMillis - previousMillis >= interval) {
-
-    // save the last time you blinked the LED
-    previousMillis = currentMillis;
-
-    // Esterna
-    tempEsterna = dht_est.readTemperature();
-    Serial.print("READ new value from DHT sensor '");
-    Serial.print(TOPIC_TEMPERATURA_ESTERNA);
-    Serial.println("'");
-    Serial.println(tempEsterna);
-    Serial.println("");
-  }
-  
-
-
   /* Leggo i valori delle temperature dai DHT */
 
   // Interna
-  tempInterna = dht_int.readTemperature();
-  Serial.print("READ new value from DHT sensor '");
-  Serial.print(TOPIC_TEMPERATURA_INTERNA);
-  Serial.println("'");
-  Serial.println(tempInterna);
-  Serial.println("");
+  if (reading_dhtInterno) {
+
+    unsigned long currentMillis = millis();
+
+    /* Check to see if it's time to read new temperature
+     *  (i.e. if the difference between the current time and last time you read the temperature
+     *  is bigger than the interval at which you want to read new temperature).
+     */
+    if (currentMillis - previousMillis_dhtInterno >= samplingRate_dhtInterno) {
+
+      // Save the last time you read the temperature
+      previousMillis_dhtInterno = currentMillis;
+  
+      tempInterna = dht_int.readTemperature();
+      Serial.print("READ new value from DHT sensor '");
+      Serial.print(TOPIC_TEMPERATURA_INTERNA);
+      Serial.println("'");
+      Serial.println(tempInterna);
+      Serial.println("");
+    }
+  }
 
   // Esterna
-  /*tempEsterna = dht_est.readTemperature();
-  Serial.print("READ new value from DHT sensor '");
-  Serial.print(TOPIC_TEMPERATURA_ESTERNA);
-  Serial.println("'");
-  Serial.println(tempEsterna);
-  Serial.println("");*/
+  if (reading_dhtEsterno) {
+
+    unsigned long currentMillis = millis();
+
+    /* Check to see if it's time to read new temperature
+     *  (i.e. if the difference between the current time and last time you read the temperature
+     *  is bigger than the interval at which you want to read new temperature).
+     */
+    if (currentMillis - previousMillis_dhtEsterno >= samplingRate_dhtEsterno) {
+
+      // Save the last time you read the temperature
+      previousMillis_dhtEsterno = currentMillis;
+  
+      tempEsterna = dht_est.readTemperature();
+      Serial.print("READ new value from DHT sensor '");
+      Serial.print(TOPIC_TEMPERATURA_ESTERNA);
+      Serial.println("'");
+      Serial.println(tempEsterna);
+      Serial.println("");
+    }
+  }
+
 
 
   serverCoAP.Process();     // CoAP
