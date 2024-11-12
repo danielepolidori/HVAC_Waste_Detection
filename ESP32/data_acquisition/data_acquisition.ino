@@ -78,7 +78,7 @@ void connectWiFi() {
 /* MQTT */
 
 // Connessione MQTT
-void reconnectMQTT() {
+void connectMQTT() {
 
   // Loop until we're reconnected
   while (!clientMQTT.connected()) {
@@ -112,21 +112,29 @@ void reconnectMQTT() {
 // Viene invocata ogni volta che l'ESP riceve un messaggio tramite MQTT
 void callbackMQTT(char* topic, byte* payload, unsigned int length) {
 
-  Serial.print("MQTT message arrived [");
+  Serial.print("MQTT message arrived ['");
   Serial.print(topic);
-  Serial.print("] ");
+  Serial.print("', ");
   
   for (int i = 0; i < length; i++) {
 
     Serial.print((char)payload[i]);
   }
 
+  Serial.print("]");
   Serial.println();
 
 
   if (strcmp(topic, TOPIC_MQTT_READ_DHT_INTERNO) == 0) {    // strcmp() restituisce 0 quando le due stringhe sono uguali
 
-    reading_dhtInterno = (bool)payload;
+    if ((char)payload[0] == '1') {
+    
+      reading_dhtInterno = true;
+    }
+    else {
+
+      reading_dhtInterno = false;
+    }
 
 
     if (reading_dhtInterno) {
@@ -140,11 +148,22 @@ void callbackMQTT(char* topic, byte* payload, unsigned int length) {
 
     Serial.print(" reading values from DHT sensor '");
     Serial.print(TOPIC_COAP_TEMPERATURA_INTERNA);
-    Serial.println("'");
+    Serial.print("'");
+    if (reading_dhtInterno) {Serial.print("...");}
+    Serial.println();
   }
   else if (strcmp(topic, TOPIC_MQTT_SAMPLING_RATE_DHT_INTERNO) == 0) {
 
-    samplingRate_dhtInterno = long(payload);
+    /* Converto il payload ricevuto in un long e lo assegno alla variabile */
+
+    char payload_string[length + 1];
+    int payload_int;
+
+    memcpy(payload_string, payload, length);
+    payload_string[length] = '\0';            // C strings have an extra byte on the end ('\0') which indicates end-of-string
+    payload_int = atoi(payload_string);
+    samplingRate_dhtInterno = long(payload_int);
+    
 
     Serial.print("Changed sampling rate for DHT sensor '");
     Serial.print(TOPIC_COAP_TEMPERATURA_INTERNA);
@@ -152,7 +171,14 @@ void callbackMQTT(char* topic, byte* payload, unsigned int length) {
   }
   else if (strcmp(topic, TOPIC_MQTT_READ_DHT_ESTERNO) == 0) {
 
-    reading_dhtEsterno = (bool)payload;
+    if ((char)payload[0] == '1') {
+    
+      reading_dhtEsterno = true;
+    }
+    else {
+
+      reading_dhtEsterno = false;
+    }
 
 
     if (reading_dhtEsterno) {
@@ -166,11 +192,22 @@ void callbackMQTT(char* topic, byte* payload, unsigned int length) {
 
     Serial.print(" reading values from DHT sensor '");
     Serial.print(TOPIC_COAP_TEMPERATURA_ESTERNA);
-    Serial.println("'");
+    Serial.print("'");
+    if (reading_dhtEsterno) {Serial.print("...");}
+    Serial.println();
   }
   else if (strcmp(topic, TOPIC_MQTT_SAMPLING_RATE_DHT_ESTERNO) == 0) {
 
-    samplingRate_dhtEsterno = long(payload);
+    /* Converto il payload ricevuto in un long e lo assegno alla variabile */
+
+    char payload_string[length + 1];
+    int payload_int;
+
+    memcpy(payload_string, payload, length);
+    payload_string[length] = '\0';            // C strings have an extra byte on the end ('\0') which indicates end-of-string
+    payload_int = atoi(payload_string);
+    samplingRate_dhtEsterno = long(payload_int);
+
 
     Serial.print("Changed sampling rate for DHT sensor '");
     Serial.print(TOPIC_COAP_TEMPERATURA_ESTERNA);
@@ -197,12 +234,12 @@ void setup() {
   
   connectWiFi();    // WiFi
 
-
   // MQTT
   clientMQTT.setClient(clientWiFi);
   clientMQTT.setServer(IP_MQTT_BROKER, 1883);
   clientMQTT.setCallback(callbackMQTT);
   clientMQTT.setBufferSize(400);
+  connectMQTT();
 
 
   /* Inizializzo i valori delle temperature registrate */
@@ -211,7 +248,7 @@ void setup() {
   tempInterna = dht_int.readTemperature();
   Serial.print("READ new value from DHT sensor '");
   Serial.print(TOPIC_COAP_TEMPERATURA_INTERNA);
-  Serial.println("'");
+  Serial.println("':");
   Serial.println(tempInterna);
   Serial.println();
 
@@ -219,7 +256,7 @@ void setup() {
   tempEsterna = dht_est.readTemperature();
   Serial.print("READ new value from DHT sensor '");
   Serial.print(TOPIC_COAP_TEMPERATURA_ESTERNA);
-  Serial.println("'");
+  Serial.println("':");
   Serial.println(tempEsterna);
   Serial.println();
 
@@ -233,15 +270,17 @@ void setup() {
   serverCoAP.CreateResource(TOPIC_COAP_TEMPERATURA_INTERNA, Thing::CoAP::ContentFormat::TextPlain, false)    // True means that this resource is observable
     .OnGet([](Thing::CoAP::Request & request) {                       // We are here configuring telling our server that, when we receive a "GET" request to this endpoint, run the following code
 
-      Serial.print("CoAP GET request received for endpoint '");
+      Serial.print("CoAP request received [GET '");
       Serial.print(TOPIC_COAP_TEMPERATURA_INTERNA);
-      Serial.println("'");
+      Serial.println("']");
 
       // Legge l'ultimo valore della temperatura ottenuto dal DHT
       float value = tempInterna;
       String message = String(value);
       const char* payload = message.c_str();
-      Serial.println(payload);
+      Serial.print("Sending value '");
+      Serial.print(payload);
+      Serial.println("'...");
       Serial.println();
 
       // Return the last state of dht
@@ -252,15 +291,17 @@ void setup() {
   serverCoAP.CreateResource(TOPIC_COAP_TEMPERATURA_ESTERNA, Thing::CoAP::ContentFormat::TextPlain, false)    // True means that this resource is observable
     .OnGet([](Thing::CoAP::Request & request) {                       // We are here configuring telling our server that, when we receive a "GET" request to this endpoint, run the following code
 
-      Serial.print("CoAP GET request received for endpoint '");
+      Serial.print("CoAP request received [GET '");
       Serial.print(TOPIC_COAP_TEMPERATURA_ESTERNA);
-      Serial.println("'");
+      Serial.println("']");
 
       // Legge l'ultimo valore della temperatura ottenuto dal DHT
       float value = tempEsterna;
       String message = String(value);
       const char* payload = message.c_str();
-      Serial.println(payload);
+      Serial.print("Sending value '");
+      Serial.print(payload);
+      Serial.println("'...");
       Serial.println();
 
       // Return the last state of dht
@@ -293,7 +334,7 @@ void loop() {
       tempInterna = dht_int.readTemperature();
       Serial.print("READ new value from DHT sensor '");
       Serial.print(TOPIC_COAP_TEMPERATURA_INTERNA);
-      Serial.println("'");
+      Serial.println("':");
       Serial.println(tempInterna);
       Serial.println();
     }
@@ -316,7 +357,7 @@ void loop() {
       tempEsterna = dht_est.readTemperature();
       Serial.print("READ new value from DHT sensor '");
       Serial.print(TOPIC_COAP_TEMPERATURA_ESTERNA);
-      Serial.println("'");
+      Serial.println("':");
       Serial.println(tempEsterna);
       Serial.println();
     }
@@ -326,13 +367,5 @@ void loop() {
 
   serverCoAP.Process();     // CoAP
 
-
-  /* MQTT */
-
-  if (!clientMQTT.connected()) {
-
-    reconnectMQTT();
-  }
-
-  clientMQTT.loop();
+  clientMQTT.loop();        // MQTT
 }
