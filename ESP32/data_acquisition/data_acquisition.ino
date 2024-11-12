@@ -36,7 +36,7 @@ Thing::CoAP::ESP::UDPPacketProvider udpProvider;
 /* MQTT */
 PubSubClient clientMQTT;
 WiFiClient clientWiFi;
-const char* IP_MQTT_BROKER = "192.168.201.12";    // Indirizzo IP del mio pc con mosquitto
+const char* IP_MQTT_BROKER = "192.168.241.12";    // Indirizzo IP del mio pc con mosquitto
 
 
 /* Variabili globali */
@@ -60,21 +60,54 @@ void connectWiFi() {
   
   WiFi.begin(WIFI_SSID, WIFI_PASS);
 
+  Serial.print("WiFi connection attempt");
   while (WiFi.status() != WL_CONNECTED) {
   
-    Serial.println("WiFi connection attempt...");
-    delay(500);
+    Serial.print("...");
+    delay(5000);
   }
   
-  delay(5000);
-  Serial.println("");
-  Serial.println("WiFi connected");
-  Serial.println(WiFi.localIP());
-  Serial.println("");
+  delay(500);
+  Serial.print(" Connected (");
+  Serial.print(WiFi.localIP());
+  Serial.println(")");
+  Serial.println();
 }
 
 
 /* MQTT */
+
+// Connessione MQTT
+void reconnectMQTT() {
+
+  // Loop until we're reconnected
+  while (!clientMQTT.connected()) {
+
+    Serial.print("MQTT connection attempt...");
+
+    // Attempt to connect
+    if (clientMQTT.connect("MyESP32Client")) {
+
+      Serial.println(" Connected");
+      Serial.println();
+
+      // ... and resubscribe
+      clientMQTT.subscribe(TOPIC_MQTT_READ_DHT_INTERNO);
+      clientMQTT.subscribe(TOPIC_MQTT_SAMPLING_RATE_DHT_INTERNO);
+      clientMQTT.subscribe(TOPIC_MQTT_READ_DHT_ESTERNO);
+      clientMQTT.subscribe(TOPIC_MQTT_SAMPLING_RATE_DHT_ESTERNO);
+    }
+    else {
+
+      Serial.print(" Failed (rc=");
+      Serial.print(clientMQTT.state());
+      Serial.println(")");
+
+      // Wait 5 seconds before retrying
+      delay(5000);
+    }
+  }
+}
 
 // Viene invocata ogni volta che l'ESP riceve un messaggio tramite MQTT
 void callbackMQTT(char* topic, byte* payload, unsigned int length) {
@@ -89,60 +122,66 @@ void callbackMQTT(char* topic, byte* payload, unsigned int length) {
   }
 
   Serial.println();
-  Serial.println("");
 
 
-  if (strcmp(topic, TOPIC_MQTT_READ_DHT_INTERNO) == 0) {    // Restituisce 0 quando le due stringhe sono uguali
+  if (strcmp(topic, TOPIC_MQTT_READ_DHT_INTERNO) == 0) {    // strcmp() restituisce 0 quando le due stringhe sono uguali
 
     reading_dhtInterno = (bool)payload;
-  }
-  else if (strcmp(topic, TOPIC_MQTT_SAMPLING_RATE_DHT_INTERNO) == 0) {
 
-      samplingRate_dhtInterno = (long)payload;
-  }
-  else if (strcmp(topic, TOPIC_MQTT_READ_DHT_ESTERNO) == 0) {
 
-      reading_dhtEsterno = (bool)payload;
-  }
-  else if (strcmp(topic, TOPIC_MQTT_SAMPLING_RATE_DHT_ESTERNO) == 0) {
+    if (reading_dhtInterno) {
 
-      samplingRate_dhtEsterno = (long)payload;
-  }
-  else
-      Serial.println("ERRORE: Topic MQTT non valido.");
-      Serial.println();
-}
-
-// Connessione MQTT
-void reconnectMQTT() {
-
-  // Loop until we're reconnected
-  while (!clientMQTT.connected()) {
-
-    Serial.print("MQTT connection attempt...");
-
-    // Attempt to connect
-    if (clientMQTT.connect("MyESP32Client")) {
-
-      Serial.println(" Connected");
-      Serial.println("");
-
-      // ... and resubscribe
-      clientMQTT.subscribe(TOPIC_MQTT_READ_DHT_INTERNO);
-      clientMQTT.subscribe(TOPIC_MQTT_SAMPLING_RATE_DHT_INTERNO);
-      clientMQTT.subscribe(TOPIC_MQTT_READ_DHT_ESTERNO);
-      clientMQTT.subscribe(TOPIC_MQTT_SAMPLING_RATE_DHT_ESTERNO);
+      Serial.print("Start");
     }
     else {
 
-      Serial.print(" Failed (rc=");
-      Serial.print(clientMQTT.state());
-      Serial.println(") Try again in 5 seconds");
-
-      // Wait 5 seconds before retrying
-      delay(5000);
+      Serial.print("Stop");
     }
+
+    Serial.print(" reading values from DHT sensor '");
+    Serial.print(TOPIC_COAP_TEMPERATURA_INTERNA);
+    Serial.println("'");
   }
+  else if (strcmp(topic, TOPIC_MQTT_SAMPLING_RATE_DHT_INTERNO) == 0) {
+
+    samplingRate_dhtInterno = long(payload);
+
+    Serial.print("Changed sampling rate for DHT sensor '");
+    Serial.print(TOPIC_COAP_TEMPERATURA_INTERNA);
+    Serial.println("'");
+  }
+  else if (strcmp(topic, TOPIC_MQTT_READ_DHT_ESTERNO) == 0) {
+
+    reading_dhtEsterno = (bool)payload;
+
+
+    if (reading_dhtEsterno) {
+
+      Serial.print("Start");
+    }
+    else {
+
+      Serial.print("Stop");
+    }
+
+    Serial.print(" reading values from DHT sensor '");
+    Serial.print(TOPIC_COAP_TEMPERATURA_ESTERNA);
+    Serial.println("'");
+  }
+  else if (strcmp(topic, TOPIC_MQTT_SAMPLING_RATE_DHT_ESTERNO) == 0) {
+
+    samplingRate_dhtEsterno = long(payload);
+
+    Serial.print("Changed sampling rate for DHT sensor '");
+    Serial.print(TOPIC_COAP_TEMPERATURA_ESTERNA);
+    Serial.println("'");
+  }
+  else {
+
+    Serial.println("ERRORE: Topic MQTT non valido.");
+  }
+
+  Serial.println();
 }
 
 
@@ -174,7 +213,7 @@ void setup() {
   Serial.print(TOPIC_COAP_TEMPERATURA_INTERNA);
   Serial.println("'");
   Serial.println(tempInterna);
-  Serial.println("");
+  Serial.println();
 
   // Esterna
   tempEsterna = dht_est.readTemperature();
@@ -182,7 +221,7 @@ void setup() {
   Serial.print(TOPIC_COAP_TEMPERATURA_ESTERNA);
   Serial.println("'");
   Serial.println(tempEsterna);
-  Serial.println("");
+  Serial.println();
 
 
   /* CoAP */
@@ -203,7 +242,7 @@ void setup() {
       String message = String(value);
       const char* payload = message.c_str();
       Serial.println(payload);
-      Serial.println("");
+      Serial.println();
 
       // Return the last state of dht
       return Thing::CoAP::Status::Content(payload);
@@ -222,7 +261,7 @@ void setup() {
       String message = String(value);
       const char* payload = message.c_str();
       Serial.println(payload);
-      Serial.println("");
+      Serial.println();
 
       // Return the last state of dht
       return Thing::CoAP::Status::Content(payload);
@@ -256,7 +295,7 @@ void loop() {
       Serial.print(TOPIC_COAP_TEMPERATURA_INTERNA);
       Serial.println("'");
       Serial.println(tempInterna);
-      Serial.println("");
+      Serial.println();
     }
   }
 
@@ -279,7 +318,7 @@ void loop() {
       Serial.print(TOPIC_COAP_TEMPERATURA_ESTERNA);
       Serial.println("'");
       Serial.println(tempEsterna);
-      Serial.println("");
+      Serial.println();
     }
   }
 

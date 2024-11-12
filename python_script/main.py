@@ -18,6 +18,7 @@ async def main():
 
     ip_coap_server = "192.168.201.4"    # Indirizzo IP dell'ESP
 
+
     topicCoap_temperaturaInterna = "temperatura_interna"
     topicCoap_temperaturaEsterna = "temperatura_esterna"
 
@@ -28,19 +29,20 @@ async def main():
     topicMqtt_samplingRateTemperaturaEsterna = "sampling_rate_dht_esterno"
 
 
+
+    # localhost: Indirizzo IP del mio pc con mosquitto
+    #publish.single(topicMqtt_readTemperaturaInterna, 0, hostname="localhost")
+    publish.single(topicMqtt_samplingRateTemperaturaInterna, 10000, hostname="localhost")
+    #publish.single(topicMqtt_readTemperaturaEsterna, 1, hostname="localhost")
+    #publish.single(topicMqtt_samplingRateTemperaturaEsterna, 60000, hostname="localhost")
+    # PRINT...
+
+
     protocol = await Context.create_client_context()
 
     while True:
 
-        # localhost: Indirizzo IP del mio pc con mosquitto
-        publish.single("read_dht_interno", 1, hostname="localhost")
-        publish.single("sampling_rate_dht_interno", 10000, hostname="localhost")
-        # ...
-        # PRINT...
-
-
-
-        # Chiedo i valori delle temperature al server ESP #
+        # Chiedo i valori delle temperature al server ESP tramite protocollo CoAP #
 
 
         # Interna
