@@ -6,23 +6,35 @@
 
 
 
+/* Sensori DHT */
+
 const int DHT_INTERNO_PIN = 4;
 const int DHT_ESTERNO_PIN = 18;
+
 const long DEFAULT_SENSE_FREQUENCY = 5000;
+
+// Label
+const char* LABEL_DHT_INTERNO = "indoor_DHT_sensor";
+const char* LABEL_DHT_ESTERNO = "outdoor_DHT_sensor";
+
 
 // WiFi data
 const char* WIFI_SSID = "OPPO A54 5G dp";
 const char* WIFI_PASS = "abcd1234";
 
-// Topic CoAP
-const char* TOPIC_COAP_TEMPERATURA_INTERNA = "temperatura_interna";
-const char* TOPIC_COAP_TEMPERATURA_ESTERNA = "temperatura_esterna";
 
-// Topic MQTT
-const char* TOPIC_MQTT_READ_DHT_INTERNO = "read_dht_interno";
-const char* TOPIC_MQTT_SAMPLING_RATE_DHT_INTERNO = "sampling_rate_dht_interno";
-const char* TOPIC_MQTT_READ_DHT_ESTERNO = "read_dht_esterno";
-const char* TOPIC_MQTT_SAMPLING_RATE_DHT_ESTERNO = "sampling_rate_dht_esterno";
+/* Topic */
+
+// CoAP
+const char* TOPIC_COAP_TEMPERATURA_INTERNA = "indoor_temperature";
+const char* TOPIC_COAP_TEMPERATURA_ESTERNA = "outdoor_temperature";
+
+// MQTT
+const char* TOPIC_MQTT_READ_DHT_INTERNO = "read_indoor_dht";
+const char* TOPIC_MQTT_SAMPLING_RATE_DHT_INTERNO = "sampling_rate_indoor_dht";
+const char* TOPIC_MQTT_READ_DHT_ESTERNO = "read_outdoor_dht";
+const char* TOPIC_MQTT_SAMPLING_RATE_DHT_ESTERNO = "sampling_rate_outdoor_dht";
+
 
 
 DHT dht_int(DHT_INTERNO_PIN, DHT22);
@@ -36,7 +48,7 @@ Thing::CoAP::ESP::UDPPacketProvider udpProvider;
 /* MQTT */
 PubSubClient clientMQTT;
 WiFiClient clientWiFi;
-const char* IP_MQTT_BROKER = "192.168.241.12";    // Indirizzo IP del mio pc con mosquitto
+const char* IP_MQTT_BROKER = "192.168.137.12";    // Indirizzo IP del mio pc con mosquitto
 
 
 /* Variabili globali */
@@ -92,10 +104,7 @@ void connectMQTT() {
       Serial.println();
 
       // ... and resubscribe
-      clientMQTT.subscribe(TOPIC_MQTT_READ_DHT_INTERNO);
-      clientMQTT.subscribe(TOPIC_MQTT_SAMPLING_RATE_DHT_INTERNO);
-      clientMQTT.subscribe(TOPIC_MQTT_READ_DHT_ESTERNO);
-      clientMQTT.subscribe(TOPIC_MQTT_SAMPLING_RATE_DHT_ESTERNO);
+      clientMQTT.subscribe("#");      // '#': all remaining levels of hierarchy (only the final part)
     }
     else {
 
@@ -112,9 +121,9 @@ void connectMQTT() {
 // Viene invocata ogni volta che l'ESP riceve un messaggio tramite MQTT
 void callbackMQTT(char* topic, byte* payload, unsigned int length) {
 
-  Serial.print("MQTT message arrived ['");
+  Serial.print("MQTT message arrived [");
   Serial.print(topic);
-  Serial.print("', ");
+  Serial.print(", ");
   
   for (int i = 0; i < length; i++) {
 
@@ -146,9 +155,8 @@ void callbackMQTT(char* topic, byte* payload, unsigned int length) {
       Serial.print("Stop");
     }
 
-    Serial.print(" reading values from DHT sensor '");
-    Serial.print(TOPIC_COAP_TEMPERATURA_INTERNA);
-    Serial.print("'");
+    Serial.print(" reading values from ");
+    Serial.print(LABEL_DHT_INTERNO);
     if (reading_dhtInterno) {Serial.print("...");}
     Serial.println();
   }
@@ -165,9 +173,8 @@ void callbackMQTT(char* topic, byte* payload, unsigned int length) {
     samplingRate_dhtInterno = long(payload_int);
     
 
-    Serial.print("Changed sampling rate for DHT sensor '");
-    Serial.print(TOPIC_COAP_TEMPERATURA_INTERNA);
-    Serial.println("'");
+    Serial.print("Changed sampling rate for ");
+    Serial.println(LABEL_DHT_INTERNO);
   }
   else if (strcmp(topic, TOPIC_MQTT_READ_DHT_ESTERNO) == 0) {
 
@@ -190,9 +197,8 @@ void callbackMQTT(char* topic, byte* payload, unsigned int length) {
       Serial.print("Stop");
     }
 
-    Serial.print(" reading values from DHT sensor '");
-    Serial.print(TOPIC_COAP_TEMPERATURA_ESTERNA);
-    Serial.print("'");
+    Serial.print(" reading values from ");
+    Serial.print(LABEL_DHT_ESTERNO);
     if (reading_dhtEsterno) {Serial.print("...");}
     Serial.println();
   }
@@ -209,9 +215,8 @@ void callbackMQTT(char* topic, byte* payload, unsigned int length) {
     samplingRate_dhtEsterno = long(payload_int);
 
 
-    Serial.print("Changed sampling rate for DHT sensor '");
-    Serial.print(TOPIC_COAP_TEMPERATURA_ESTERNA);
-    Serial.println("'");
+    Serial.print("Changed sampling rate for ");
+    Serial.println(LABEL_DHT_ESTERNO);
   }
   else {
 
@@ -246,17 +251,17 @@ void setup() {
 
   // Interna
   tempInterna = dht_int.readTemperature();
-  Serial.print("READ new value from DHT sensor '");
-  Serial.print(TOPIC_COAP_TEMPERATURA_INTERNA);
-  Serial.println("':");
+  Serial.print("READ new value from ");
+  Serial.print(LABEL_DHT_INTERNO);
+  Serial.println(":");
   Serial.println(tempInterna);
   Serial.println();
 
   // Esterna
   tempEsterna = dht_est.readTemperature();
-  Serial.print("READ new value from DHT sensor '");
-  Serial.print(TOPIC_COAP_TEMPERATURA_ESTERNA);
-  Serial.println("':");
+  Serial.print("READ new value from ");
+  Serial.print(LABEL_DHT_ESTERNO);
+  Serial.println(":");
   Serial.println(tempEsterna);
   Serial.println();
 
@@ -270,9 +275,9 @@ void setup() {
   serverCoAP.CreateResource(TOPIC_COAP_TEMPERATURA_INTERNA, Thing::CoAP::ContentFormat::TextPlain, false)    // True means that this resource is observable
     .OnGet([](Thing::CoAP::Request & request) {                       // We are here configuring telling our server that, when we receive a "GET" request to this endpoint, run the following code
 
-      Serial.print("CoAP request received [GET '");
+      Serial.print("CoAP request received [GET ");
       Serial.print(TOPIC_COAP_TEMPERATURA_INTERNA);
-      Serial.println("']");
+      Serial.println("]");
 
       // Legge l'ultimo valore della temperatura ottenuto dal DHT
       float value = tempInterna;
@@ -291,9 +296,9 @@ void setup() {
   serverCoAP.CreateResource(TOPIC_COAP_TEMPERATURA_ESTERNA, Thing::CoAP::ContentFormat::TextPlain, false)    // True means that this resource is observable
     .OnGet([](Thing::CoAP::Request & request) {                       // We are here configuring telling our server that, when we receive a "GET" request to this endpoint, run the following code
 
-      Serial.print("CoAP request received [GET '");
+      Serial.print("CoAP request received [GET ");
       Serial.print(TOPIC_COAP_TEMPERATURA_ESTERNA);
-      Serial.println("']");
+      Serial.println("]");
 
       // Legge l'ultimo valore della temperatura ottenuto dal DHT
       float value = tempEsterna;
@@ -332,9 +337,9 @@ void loop() {
       previousMillis_dhtInterno = currentMillis;
   
       tempInterna = dht_int.readTemperature();
-      Serial.print("READ new value from DHT sensor '");
-      Serial.print(TOPIC_COAP_TEMPERATURA_INTERNA);
-      Serial.println("':");
+      Serial.print("READ new value from ");
+      Serial.print(LABEL_DHT_INTERNO);
+      Serial.println(":");
       Serial.println(tempInterna);
       Serial.println();
     }
@@ -355,9 +360,9 @@ void loop() {
       previousMillis_dhtEsterno = currentMillis;
   
       tempEsterna = dht_est.readTemperature();
-      Serial.print("READ new value from DHT sensor '");
-      Serial.print(TOPIC_COAP_TEMPERATURA_ESTERNA);
-      Serial.println("':");
+      Serial.print("READ new value from ");
+      Serial.print(LABEL_DHT_ESTERNO);
+      Serial.println(":");
       Serial.println(tempEsterna);
       Serial.println();
     }
