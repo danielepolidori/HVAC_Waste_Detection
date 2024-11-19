@@ -16,7 +16,7 @@ logging.basicConfig(level=logging.INFO)
 
 async def main():
 
-    ip_coap_server = "192.168.137.4"    # Indirizzo IP dell'ESP
+    ip_coap_server = "192.168.47.4"    # Indirizzo IP dell'ESP
 
 
     # Topic #
@@ -89,12 +89,15 @@ async def main():
             print("[CoAP] Failed to fetch resource for endpoint " + topicCoap_temperaturaInterna + ":")
             print(e)
         else:
+            #response_temperaturaInterna_value = float(response_temperaturaInterna.payload.decode("utf-8"))
+            response_temperaturaInterna_value = float(response_temperaturaInterna.payload.decode("utf-8")) - 2.0    #tmp
+
             # “2.05 Content” is a successful message (is the rough equivalent of HTTP’s “200 OK”)
-            print("[%s, CoAP]  RESULT for endpoint %s:\n(%s)  %r" % (datetime.datetime.now().strftime('%H:%M:%S'), topicCoap_temperaturaInterna, response_temperaturaInterna.code, response_temperaturaInterna.payload.decode("utf-8")))
+            print("[%s, CoAP]  RESULT for endpoint %s:\n(%s)  %0.2f" % (datetime.datetime.now().strftime('%H:%M:%S'), topicCoap_temperaturaInterna, response_temperaturaInterna.code, response_temperaturaInterna_value))
 
             # InfluxDB #
             # Create and write the point
-            p = Point(topicInflux_temperatura).field("indoor", float(response_temperaturaInterna.payload.decode("utf-8")))
+            p = Point(topicInflux_temperatura).field("indoor", response_temperaturaInterna_value)
             write_api.write(bucket=bucket, org=org, record=p)
             print("Data stored on database InfluxDB\n")
 
@@ -113,12 +116,14 @@ async def main():
             print("[CoAP] Failed to fetch resource for endpoint " + topicCoap_temperaturaEsterna + ":")
             print(e)
         else:
+            response_temperaturaEsterna_value = float(response_temperaturaEsterna.payload.decode("utf-8"))
+
             # “2.05 Content” is a successful message (is the rough equivalent of HTTP’s “200 OK”)
-            print("[%s, CoAP]  RESULT for endpoint %s:\n(%s)  %r" % (datetime.datetime.now().strftime('%H:%M:%S'), topicCoap_temperaturaEsterna, response_temperaturaEsterna.code, response_temperaturaEsterna.payload.decode("utf-8")))
+            print("[%s, CoAP]  RESULT for endpoint %s:\n(%s)  %0.2f" % (datetime.datetime.now().strftime('%H:%M:%S'), topicCoap_temperaturaEsterna, response_temperaturaEsterna.code, response_temperaturaEsterna_value))
 
             # InfluxDB #
             # Create and write the point
-            p = Point(topicInflux_temperatura).field("outdoor", float(response_temperaturaEsterna.payload.decode("utf-8")))
+            p = Point(topicInflux_temperatura).field("outdoor", response_temperaturaEsterna_value)
             write_api.write(bucket=bucket, org=org, record=p)
             print("Data stored on database InfluxDB\n")
 
