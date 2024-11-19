@@ -237,9 +237,9 @@ void setup() {
   dht_est.begin();
   delay(2000);
   
-  connectWiFi();    // WiFi
+  connectWiFi();    // WiFi connection
 
-  // MQTT
+  // MQTT connection
   clientMQTT.setClient(clientWiFi);
   clientMQTT.setServer(IP_MQTT_BROKER, 1883);
   clientMQTT.setCallback(callbackMQTT);

@@ -1,6 +1,8 @@
 from influxdb_client import InfluxDBClient
 
 import numpy as np
+import time
+import datetime
 
 
 # InfluxDB mio (in locale) #
@@ -12,8 +14,10 @@ influx_IP = "http://localhost:8086"
 
 topicInflux_temperatura = "temperature"
 
-query_allTemperatures = 'from(bucket: "' + bucket + '")' \
-        '|> range(start: -1h)' \
+# Chiedo i valori di temperatura rilevati negli ultimi minuti (ho un nuovo elemento ogni 5 secondi)
+lastMinutes = '2'
+query_lastTemperatures = 'from(bucket: "' + bucket + '")' \
+        '|> range(start: -' + lastMinutes + 'm)' \
         '|> filter(fn: (r) => r._measurement == "' + topicInflux_temperatura + '")'
 
 # Establish a connection
@@ -24,60 +28,60 @@ query_api = client_influx.query_api()
 
 
 
-# Return the table and print the result
-result = query_api.query(org=org, query=query_allTemperatures)
-results = []
-for table in result:
-    for record in table.records:
-        results.append((record.get_value(), record.get_field()))
-#print(results)
-print()
+# Recupero ciclicamente i dati dal DB e li analizzo
+while True:
 
+    results = query_api.query(org=org, query=query_lastTemperatures)        # Return the table of all the temperatures
+    print("[" + datetime.datetime.now().strftime('%H:%M:%S') + "] Temperature data (of last " + lastMinutes + " minutes) received from database InfluxDB\n")
 
-# Interna #
+    lastIndoorTemperatures = []
+    lastOutdoorTemperatures = []
+    for table in results:
+        for record in table.records:
+            if record.get_field() == "indoor":
+                lastIndoorTemperatures.append(record.get_value())
+            elif record.get_field() == "outdoor":
+                lastOutdoorTemperatures.append(record.get_value())
 
-filtered_indoorTemperature = list(filter(lambda data: data[1]=="indoor", results))
-#print(filtered_indoorTemperature)
-print()
+    print("Indoor temperatures:")
+    print(lastIndoorTemperatures)
+    #print(np.var(lastIndoorTemperatures))        # Varianza
+    print()
 
-values_indoorTemperature = [list(i)[0] for i in filtered_indoorTemperature]     # list of lists
-values_indoorTemperature = values_indoorTemperature[-20:]       # Ultimi 10 elementi della lista
-print("indoor:")
-print(values_indoorTemperature)
-
-# La varianza di una variabile statistica fornisce una misura della variabilita' dei valori assunti dalla variabile stessa
-varianza_indoorTemperature = np.var(values_indoorTemperature)
-print(varianza_indoorTemperature)
-print()
-
-
-# Esterna #
-
-filtered_outdoorTemperature = list(filter(lambda data: data[1]=="outdoor", results))
-#print(filtered_outdoorTemperature)
-print()
-
-values_outdoorTemperature = [list(i)[0] for i in filtered_outdoorTemperature]     # list of lists
-values_outdoorTemperature = values_outdoorTemperature[-20:]       # Ultimi 10 elementi della lista
-print("outdoor:")
-print(values_outdoorTemperature)
-
-# La varianza di una variabile statistica fornisce una misura della variabilita' dei valori assunti dalla variabile stessa
-varianza_outdoorTemperature = np.var(values_outdoorTemperature)
-print(varianza_outdoorTemperature)
-print()
+    print("Outdoor temperatures:")
+    print(lastOutdoorTemperatures)
+    #print(np.var(lastOutdoorTemperatures))       # Varianza
+    print()
+    print()
 
 
 
-# Controllo
+    # Controllo un'eventuale dispersione di calore (identificata tramite rapidi cambiamenti di temperatura) #
 
-differenzaInizialeTemperature = abs(values_indoorTemperature[0] - values_outdoorTemperature[0])
-differenzaFinaleTemperature = abs(values_indoorTemperature[-1] - values_outdoorTemperature[-1])
+    varianza_costante = 0.05                # Una temperatura costante ha una varianza minore di questo valore
+    varianza_cambiamentoRapido = 0.15        # Una temperatura in rapido cambiamento ha una varianza maggiore di questo valore
 
-if (((varianza_indoorTemperature > 0.2              # Se la temperatura interna ha un picco
-    and varianza_outdoorTemperature < 0.05)         # e quella esterna e' costante...
-    or (varianza_outdoorTemperature > 0.2           # (...oppure il contrario...)
-    and varianza_indoorTemperature < 0.05))
-    and differenzaFinaleTemperature < differenzaInizialeTemperature):       # ... e una temperatura si sta avvicinando all'altra
+    minTemperaturaIniziale = min(lastIndoorTemperatures[0], lastOutdoorTemperatures[0])
+    maxTemperaturaIniziale = max(lastIndoorTemperatures[0], lastOutdoorTemperatures[0])
 
-    print("ALARM!!!")
+    # La varianza di una variabile statistica fornisce una misura della variabilita' dei valori assunti dalla variabile stessa
+    if ((np.var(lastIndoorTemperatures) > varianza_cambiamentoRapido                                # Se la temperatura interna ha un cambiamento rapido...
+        and np.var(lastOutdoorTemperatures) < varianza_costante                                     # ...quella esterna e' costante...
+        and minTemperaturaIniziale <= np.mean(lastIndoorTemperatures) <= maxTemperaturaIniziale)    # ... e le due temperature si stanno avvicinando
+        or (np.var(lastOutdoorTemperatures) > varianza_cambiamentoRapido                            # (oppure viceversa)
+        and np.var(lastIndoorTemperatures) < varianza_costante
+        and minTemperaturaIniziale <= np.mean(lastOutdoorTemperatures) <= maxTemperaturaIniziale)):
+
+        print("ALARM: HVAC waste detected!")
+    else:
+        print("Temperature data processed successfully")
+
+    print()
+    print()
+    print("***")
+    print()
+    print()
+
+
+
+    time.sleep(30)
