@@ -4,6 +4,9 @@ import numpy as np
 import time
 import datetime
 
+import pandas as pd
+from prophet import Prophet
+
 
 # InfluxDB mio (in locale) #
 
@@ -36,21 +39,23 @@ while True:
 
     lastIndoorTemperatures = []
     lastOutdoorTemperatures = []
+    datetimeValues = []
     for table in results:
         for record in table.records:
             if record.get_field() == "indoor":
                 lastIndoorTemperatures.append(record.get_value())
             elif record.get_field() == "outdoor":
                 lastOutdoorTemperatures.append(record.get_value())
+                datetimeValues.append((record.get_time().strftime('%Y-%m-%d %H:%M:%S'), record.get_value()))
 
     print("Indoor temperatures:")
     print(lastIndoorTemperatures)
-    print(np.var(lastIndoorTemperatures))        # Varianza
+    #print(np.var(lastIndoorTemperatures))        # Varianza
     print()
 
     print("Outdoor temperatures:")
     print(lastOutdoorTemperatures)
-    print(np.var(lastOutdoorTemperatures))       # Varianza
+    #print(np.var(lastOutdoorTemperatures))       # Varianza
     print()
     print()
 
@@ -69,13 +74,46 @@ while True:
         or (np.var(lastIndoorTemperatures) < sogliaVarianza < np.var(lastOutdoorTemperatures)               # (oppure viceversa)
             and minTemperaturaIniziale <= np.mean(lastOutdoorTemperatures) <= maxTemperaturaIniziale)):
 
-        print("=============================")
+        print("-----------------------------")
         print(" ALARM: HVAC waste detected!")
-        print("=============================")
+        print("-----------------------------")
     else:
         print("Temperature data processed successfully")
-
     print()
+
+
+
+    # FB Prophet
+
+    #print(datetimeValues)
+    print()
+
+    df = pd.DataFrame(datetimeValues)
+    df.columns = ['ds', 'y']
+    print(df.tail())
+    print()
+
+    m = Prophet()
+    #m = Prophet(interval_width=0.95)   # prof
+    m.fit(df)
+
+    future = m.make_future_dataframe(periods=60, freq='s')      # Prevede i futuri 60 secondi
+    #print(future.tail())
+    print()
+
+    forecast = m.predict(future)
+    print(forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].tail())
+    print()
+
+    fig1 = m.plot(forecast)
+    #fig1 = m.plot(forecast, uncertainty=True)  # prof
+    fig1.savefig("prophet_plot.svg")
+
+    fig2 = m.plot_components(forecast)
+    #fig2.savefig("prophet_plotComponents.svg")
+
+
+
     print()
     print("***")
     print()
