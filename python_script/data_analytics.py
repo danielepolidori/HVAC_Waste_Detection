@@ -45,12 +45,12 @@ while True:
 
     print("Indoor temperatures:")
     print(lastIndoorTemperatures)
-    #print(np.var(lastIndoorTemperatures))        # Varianza
+    print(np.var(lastIndoorTemperatures))        # Varianza
     print()
 
     print("Outdoor temperatures:")
     print(lastOutdoorTemperatures)
-    #print(np.var(lastOutdoorTemperatures))       # Varianza
+    print(np.var(lastOutdoorTemperatures))       # Varianza
     print()
     print()
 
@@ -58,21 +58,20 @@ while True:
 
     # Controllo un'eventuale dispersione di calore (identificata tramite rapidi cambiamenti di temperatura) #
 
-    varianza_costante = 0.05                # Una temperatura costante ha una varianza minore di questo valore
-    varianza_cambiamentoRapido = 0.15        # Una temperatura in rapido cambiamento ha una varianza maggiore di questo valore
+    sogliaVarianza = 0.01       # Una temperatura costante (in rapido cambiamento) ha una varianza minore (maggiore) di questo valore
 
     minTemperaturaIniziale = min(lastIndoorTemperatures[0], lastOutdoorTemperatures[0])
     maxTemperaturaIniziale = max(lastIndoorTemperatures[0], lastOutdoorTemperatures[0])
 
     # La varianza di una variabile statistica fornisce una misura della variabilita' dei valori assunti dalla variabile stessa
-    if ((np.var(lastIndoorTemperatures) > varianza_cambiamentoRapido                                # Se la temperatura interna ha un cambiamento rapido...
-        and np.var(lastOutdoorTemperatures) < varianza_costante                                     # ...quella esterna e' costante...
-        and minTemperaturaIniziale <= np.mean(lastIndoorTemperatures) <= maxTemperaturaIniziale)    # ... e le due temperature si stanno avvicinando
-        or (np.var(lastOutdoorTemperatures) > varianza_cambiamentoRapido                            # (oppure viceversa)
-        and np.var(lastIndoorTemperatures) < varianza_costante
-        and minTemperaturaIniziale <= np.mean(lastOutdoorTemperatures) <= maxTemperaturaIniziale)):
+    if ((   np.var(lastOutdoorTemperatures) < sogliaVarianza < np.var(lastIndoorTemperatures)               # Se la temperatura interna ha un cambiamento rapido e quella esterna e' costante...
+            and minTemperaturaIniziale <= np.mean(lastIndoorTemperatures) <= maxTemperaturaIniziale)        # ... e le due temperature si stanno avvicinando
+        or (np.var(lastIndoorTemperatures) < sogliaVarianza < np.var(lastOutdoorTemperatures)               # (oppure viceversa)
+            and minTemperaturaIniziale <= np.mean(lastOutdoorTemperatures) <= maxTemperaturaIniziale)):
 
-        print("ALARM: HVAC waste detected!")
+        print("=============================")
+        print(" ALARM: HVAC waste detected!")
+        print("=============================")
     else:
         print("Temperature data processed successfully")
 
