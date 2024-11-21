@@ -21,8 +21,11 @@ topicInflux_temperatura = "temperature"
 
 # Chiedo i valori di temperatura rilevati negli ultimi minuti (ho un nuovo elemento ogni 5 secondi)
 lastMinutes = '2'
+#query_lastTemperatures =    'from(bucket: "' + bucket + '")' \
+#                            '|> range(start: -' + lastMinutes + 'm)' \
+#                            '|> filter(fn: (r) => r._measurement == "' + topicInflux_temperatura + '")'
 query_lastTemperatures =    'from(bucket: "' + bucket + '")' \
-                            '|> range(start: -' + lastMinutes + 'm)' \
+                            '|> range(start: 2024-11-19T15:33:00Z)' \
                             '|> filter(fn: (r) => r._measurement == "' + topicInflux_temperatura + '")'
 
 # Establish a connection
@@ -51,13 +54,13 @@ while True:
                 datetimeValues.append((record.get_time().astimezone().strftime('%Y-%m-%d %H:%M:%S'), record.get_value()))       # .astimezone(): converte l'orario nell'UTC di Roma
 
     print("Indoor temperatures:")
-    print(lastIndoorTemperatures)
-    print(np.var(lastIndoorTemperatures))        # Varianza
+    #print(lastIndoorTemperatures)
+    #print(np.var(lastIndoorTemperatures))        # Varianza
     print()
 
     print("Outdoor temperatures:")
-    print(lastOutdoorTemperatures)
-    print(np.var(lastOutdoorTemperatures))       # Varianza
+    #print(lastOutdoorTemperatures)
+    #print(np.var(lastOutdoorTemperatures))       # Varianza
     print()
     print()
 
@@ -92,14 +95,16 @@ while True:
 
     df = pd.DataFrame(datetimeValues)
     df.columns = ['ds', 'y']
-    print(df.tail())
+    print(df)
     print()
 
     model = Prophet()
     #model = Prophet(interval_width=0.95)   # prof
     model.fit(df)
 
-    future = model.make_future_dataframe(periods=60, freq='s')      # Prevede i futuri 60 secondi
+    #future = model.make_future_dataframe(periods=12*60, freq='5s')     # Prevede le temperature della prossima ora, in intervalli di 5 sec
+    #future = model.make_future_dataframe(periods=6, freq='h')
+    future = model.make_future_dataframe(periods=12, freq='5min')  # Prevede le temperature della prossima ora, in intervalli di 5 min
     #print(future.tail())
     print()
 
