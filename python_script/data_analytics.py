@@ -19,15 +19,6 @@ influx_IP = "http://localhost:8086"
 
 topicInflux_temperatura = "temperature"
 
-# Chiedo i valori di temperatura rilevati negli ultimi minuti (ho un nuovo elemento ogni 5 secondi)
-lastMinutes = '2'
-#query_lastTemperatures =    'from(bucket: "' + bucket + '")' \
-#                            '|> range(start: -' + lastMinutes + 'm)' \
-#                            '|> filter(fn: (r) => r._measurement == "' + topicInflux_temperatura + '")'
-query_lastTemperatures =    'from(bucket: "' + bucket + '")' \
-                            '|> range(start: 2024-11-19T15:33:00Z)' \
-                            '|> filter(fn: (r) => r._measurement == "' + topicInflux_temperatura + '")'
-
 # Establish a connection
 client_influx = InfluxDBClient(url=influx_IP, token=token, org=org)
 
@@ -36,34 +27,96 @@ query_api = client_influx.query_api()
 
 
 
-# Recupero ciclicamente i dati dal DB e li analizzo
+# Forecast #
+
+
+# Query di tutte le temperature presenti sul DB
+query_allTemperatures = 'from(bucket: "' + bucket + '")' \
+                        '|> range(start: 2024-11-19T15:33:00Z)' \
+                        '|> filter(fn: (r) => r._measurement == "' + topicInflux_temperatura + '")'
+
+results = query_api.query(org=org, query=query_allTemperatures)        # Return the table of all the temperatures
+print("[" + datetime.datetime.now().strftime('%H:%M:%S') + "] Temperature data (all) received from database InfluxDB\n")
+
+datetimeValues_allIndoorTemperatures = []
+datetimeValues_allOutdoorTemperatures = []
+for table in results:
+    for record in table.records:
+        if record.get_field() == "indoor":
+            datetimeValues_allIndoorTemperatures.append((record.get_time().astimezone().strftime('%Y-%m-%d %H:%M:%S'), record.get_value()))       # .astimezone(): converte l'orario nell'UTC di Roma
+        elif record.get_field() == "outdoor":
+            datetimeValues_allOutdoorTemperatures.append((record.get_time().astimezone().strftime('%Y-%m-%d %H:%M:%S'), record.get_value()))       # .astimezone(): converte l'orario nell'UTC di Roma
+
+
+# FB Prophet #
+
+df_allIndoorTemperatures = pd.DataFrame(datetimeValues_allIndoorTemperatures)
+df_allOutdoorTemperatures = pd.DataFrame(datetimeValues_allOutdoorTemperatures)
+df_allIndoorTemperatures.columns = ['ds', 'y']
+df_allOutdoorTemperatures.columns = ['ds', 'y']
+print(df_allIndoorTemperatures)
+print(df_allOutdoorTemperatures)
+print()
+
+model_indoor = Prophet()
+model_outdoor = Prophet()
+model_indoor.fit(df_allIndoorTemperatures)
+model_outdoor.fit(df_allOutdoorTemperatures)
+
+future_indoor = model_indoor.make_future_dataframe(periods=12, freq='5min')     # Prevede le temperature della prossima ora, in intervalli di 5 min
+future_outdoor = model_outdoor.make_future_dataframe(periods=12, freq='5min')   # Prevede le temperature della prossima ora, in intervalli di 5 min
+
+forecast_indoor = model_indoor.predict(future_indoor)
+forecast_outdoor = model_outdoor.predict(future_outdoor)
+print(forecast_indoor[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].tail())
+print(forecast_outdoor[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].tail())
+print()
+
+plot_indoor = model_indoor.plot(forecast_indoor)
+plot_outdoor = model_outdoor.plot(forecast_outdoor)
+plot_indoor.savefig("forecast_indoorTemperatures.svg")
+plot_outdoor.savefig("forecast_outdoorTemperatures.svg")
+
+plotComponents_indoor = model_indoor.plot_components(forecast_indoor)
+plotComponents_outdoor = model_outdoor.plot_components(forecast_outdoor)
+#plotComponents_indoor.savefig("forecastComponents_indoorTemperatures.svg")
+#plotComponents_outdoor.savefig("forecastComponents_outdoorTemperatures.svg")
+
+
+
+# Recupero ciclicamente i dati dal DB e li analizzo per controllare la dispersione di calore #
+
+
+# Query delle temperature rilevate negli ultimi minuti
+lastMinutes = '2'
+query_lastTemperatures =    'from(bucket: "' + bucket + '")' \
+                            '|> range(start: -' + lastMinutes + 'm)' \
+                            '|> filter(fn: (r) => r._measurement == "' + topicInflux_temperatura + '")'
+
 while True:
 
-    results = query_api.query(org=org, query=query_lastTemperatures)        # Return the table of all the temperatures
+    results = query_api.query(org=org, query=query_lastTemperatures)        # Return the table of the temperatures
     print("[" + datetime.datetime.now().strftime('%H:%M:%S') + "] Temperature data (of last " + lastMinutes + " minutes) received from database InfluxDB\n")
 
     lastIndoorTemperatures = []
     lastOutdoorTemperatures = []
-    datetimeValues = []
     for table in results:
         for record in table.records:
             if record.get_field() == "indoor":
                 lastIndoorTemperatures.append(record.get_value())
             elif record.get_field() == "outdoor":
                 lastOutdoorTemperatures.append(record.get_value())
-                datetimeValues.append((record.get_time().astimezone().strftime('%Y-%m-%d %H:%M:%S'), record.get_value()))       # .astimezone(): converte l'orario nell'UTC di Roma
 
     print("Indoor temperatures:")
-    #print(lastIndoorTemperatures)
+    print(lastIndoorTemperatures)
     #print(np.var(lastIndoorTemperatures))        # Varianza
     print()
 
     print("Outdoor temperatures:")
-    #print(lastOutdoorTemperatures)
+    print(lastOutdoorTemperatures)
     #print(np.var(lastOutdoorTemperatures))       # Varianza
     print()
     print()
-
 
 
     # Controllo un'eventuale dispersione di calore (identificata tramite rapidi cambiamenti di temperatura) #
@@ -84,48 +137,12 @@ while True:
         print("-----------------------------")
     else:
         print("Temperature data processed successfully")
+
+
     print()
-
-
-
-    # FB Prophet
-
-    #print(datetimeValues)
-    print()
-
-    df = pd.DataFrame(datetimeValues)
-    df.columns = ['ds', 'y']
-    print(df)
-    print()
-
-    model = Prophet()
-    #model = Prophet(interval_width=0.95)   # prof
-    model.fit(df)
-
-    #future = model.make_future_dataframe(periods=12*60, freq='5s')     # Prevede le temperature della prossima ora, in intervalli di 5 sec
-    #future = model.make_future_dataframe(periods=6, freq='h')
-    future = model.make_future_dataframe(periods=12, freq='5min')  # Prevede le temperature della prossima ora, in intervalli di 5 min
-    #print(future.tail())
-    print()
-
-    forecast = model.predict(future)
-    print(forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].tail())
-    print()
-
-    fig1 = model.plot(forecast)
-    #fig1 = model.plot(forecast, uncertainty=True)  # prof
-    fig1.savefig("prophet_plot.svg")
-
-    fig2 = model.plot_components(forecast)
-    #fig2.savefig("prophet_plotComponents.svg")
-
-
-
     print()
     print("***")
     print()
     print()
-
-
 
     time.sleep(30)
