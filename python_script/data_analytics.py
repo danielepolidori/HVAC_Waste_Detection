@@ -31,9 +31,11 @@ query_api = client_influx.query_api()
 
 
 # Query di tutte le temperature presenti sul DB
+#freqDataAggregation = "10m"
 query_allTemperatures = 'from(bucket: "' + bucket + '")' \
                         '|> range(start: 2024-11-19T15:33:00Z)' \
-                        '|> filter(fn: (r) => r._measurement == "' + topicInflux_temperatura + '")'
+                        '|> filter(fn: (r) => r._measurement == "' + topicInflux_temperatura + '")' #\
+                        #'|> aggregateWindow(every: ' + freqDataAggregation + ', fn: mean)'
 
 results = query_api.query(org=org, query=query_allTemperatures)        # Return the table of all the temperatures
 print("[" + datetime.datetime.now().strftime('%H:%M:%S') + "] Temperature data (all) received from database InfluxDB\n")
@@ -50,11 +52,12 @@ for table in results:
 
 # FB Prophet #
 
-df_allIndoorTemperatures = pd.DataFrame(datetimeValues_allIndoorTemperatures)
-df_allOutdoorTemperatures = pd.DataFrame(datetimeValues_allOutdoorTemperatures)
-df_allIndoorTemperatures.columns = ['ds', 'y']
-df_allOutdoorTemperatures.columns = ['ds', 'y']
+df_allIndoorTemperatures = pd.DataFrame(datetimeValues_allIndoorTemperatures, columns = ['ds', 'y'])
+df_allOutdoorTemperatures = pd.DataFrame(datetimeValues_allOutdoorTemperatures, columns = ['ds', 'y'])
+print("ALL indoor temperatures:")
 print(df_allIndoorTemperatures)
+print()
+print("ALL outdoor temperatures:")
 print(df_allOutdoorTemperatures)
 print()
 
@@ -63,19 +66,25 @@ model_outdoor = Prophet()
 model_indoor.fit(df_allIndoorTemperatures)
 model_outdoor.fit(df_allOutdoorTemperatures)
 
-future_indoor = model_indoor.make_future_dataframe(periods=12, freq='5min')     # Prevede le temperature della prossima ora, in intervalli di 5 min
-future_outdoor = model_outdoor.make_future_dataframe(periods=12, freq='5min')   # Prevede le temperature della prossima ora, in intervalli di 5 min
+freqForecast = "10min"      # Ogni quanto tempo
+timesForecast = 6           # Quante volte
+future_indoor = model_indoor.make_future_dataframe(periods=timesForecast, freq=freqForecast)
+future_outdoor = model_outdoor.make_future_dataframe(periods=timesForecast, freq=freqForecast)
 
 forecast_indoor = model_indoor.predict(future_indoor)
 forecast_outdoor = model_outdoor.predict(future_outdoor)
-print(forecast_indoor[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].tail())
-print(forecast_outdoor[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].tail())
+print("FORECAST indoor temperature:")
+print(forecast_indoor[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].tail(timesForecast))
+print()
+print("FORECAST outdoor temperature:")
+print(forecast_outdoor[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].tail(timesForecast))
 print()
 
 plot_indoor = model_indoor.plot(forecast_indoor)
 plot_outdoor = model_outdoor.plot(forecast_outdoor)
 plot_indoor.savefig("forecast_indoorTemperatures.svg")
 plot_outdoor.savefig("forecast_outdoorTemperatures.svg")
+print("Forecast plot saved locally")
 
 plotComponents_indoor = model_indoor.plot_components(forecast_indoor)
 plotComponents_outdoor = model_outdoor.plot_components(forecast_outdoor)
@@ -95,6 +104,13 @@ query_lastTemperatures =    'from(bucket: "' + bucket + '")' \
 
 while True:
 
+    print()
+    print()
+    print("***")
+    print()
+    print()
+
+
     results = query_api.query(org=org, query=query_lastTemperatures)        # Return the table of the temperatures
     print("[" + datetime.datetime.now().strftime('%H:%M:%S') + "] Temperature data (of last " + lastMinutes + " minutes) received from database InfluxDB\n")
 
@@ -107,12 +123,12 @@ while True:
             elif record.get_field() == "outdoor":
                 lastOutdoorTemperatures.append(record.get_value())
 
-    print("Indoor temperatures:")
+    print("Last indoor temperatures:")
     print(lastIndoorTemperatures)
     #print(np.var(lastIndoorTemperatures))        # Varianza
     print()
 
-    print("Outdoor temperatures:")
+    print("Last outdoor temperatures:")
     print(lastOutdoorTemperatures)
     #print(np.var(lastOutdoorTemperatures))       # Varianza
     print()
@@ -138,11 +154,5 @@ while True:
     else:
         print("Temperature data processed successfully")
 
-
-    print()
-    print()
-    print("***")
-    print()
-    print()
 
     time.sleep(30)
