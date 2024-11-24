@@ -6,6 +6,9 @@
 
 
 
+const int LED_PIN = 23;   // Led di allarme
+
+
 /* Sensori DHT */
 
 const int DHT_INTERNO_PIN = 4;
@@ -34,6 +37,7 @@ const char* TOPIC_MQTT_READ_DHT_INTERNO = "read_indoor_dht";
 const char* TOPIC_MQTT_SAMPLING_RATE_DHT_INTERNO = "sampling_rate_indoor_dht";
 const char* TOPIC_MQTT_READ_DHT_ESTERNO = "read_outdoor_dht";
 const char* TOPIC_MQTT_SAMPLING_RATE_DHT_ESTERNO = "sampling_rate_outdoor_dht";
+const char* TOPIC_MQTT_ALARM_LED = "alarm_led";
 
 
 
@@ -48,7 +52,7 @@ Thing::CoAP::ESP::UDPPacketProvider udpProvider;
 /* MQTT */
 PubSubClient clientMQTT;
 WiFiClient clientWiFi;
-const char* IP_MQTT_BROKER = "192.168.62.12";    // Indirizzo IP del mio pc con mosquitto
+const char* IP_MQTT_BROKER = "192.168.208.12";    // Indirizzo IP del mio pc con mosquitto
 
 
 /* Variabili globali */
@@ -139,26 +143,18 @@ void callbackMQTT(char* topic, byte* payload, unsigned int length) {
     if ((char)payload[0] == '1') {
     
       reading_dhtInterno = true;
+
+      Serial.print("Start reading values from ");
+      Serial.print(LABEL_DHT_INTERNO);
+      Serial.println("...");
     }
     else {
 
       reading_dhtInterno = false;
+
+      Serial.print("Stop reading values from ");
+      Serial.println(LABEL_DHT_INTERNO);
     }
-
-
-    if (reading_dhtInterno) {
-
-      Serial.print("Start");
-    }
-    else {
-
-      Serial.print("Stop");
-    }
-
-    Serial.print(" reading values from ");
-    Serial.print(LABEL_DHT_INTERNO);
-    if (reading_dhtInterno) {Serial.print("...");}
-    Serial.println();
   }
   else if (strcmp(topic, TOPIC_MQTT_SAMPLING_RATE_DHT_INTERNO) == 0) {
 
@@ -181,26 +177,18 @@ void callbackMQTT(char* topic, byte* payload, unsigned int length) {
     if ((char)payload[0] == '1') {
     
       reading_dhtEsterno = true;
+
+      Serial.print("Start reading values from ");
+      Serial.print(LABEL_DHT_ESTERNO);
+      Serial.println("...");
     }
     else {
 
       reading_dhtEsterno = false;
+
+      Serial.print("Stop reading values from ");
+      Serial.println(LABEL_DHT_ESTERNO);
     }
-
-
-    if (reading_dhtEsterno) {
-
-      Serial.print("Start");
-    }
-    else {
-
-      Serial.print("Stop");
-    }
-
-    Serial.print(" reading values from ");
-    Serial.print(LABEL_DHT_ESTERNO);
-    if (reading_dhtEsterno) {Serial.print("...");}
-    Serial.println();
   }
   else if (strcmp(topic, TOPIC_MQTT_SAMPLING_RATE_DHT_ESTERNO) == 0) {
 
@@ -218,9 +206,22 @@ void callbackMQTT(char* topic, byte* payload, unsigned int length) {
     Serial.print("Changed sampling rate for ");
     Serial.println(LABEL_DHT_ESTERNO);
   }
+  else if (strcmp(topic, TOPIC_MQTT_ALARM_LED) == 0) {
+
+    if ((char)payload[0] == '1') {
+    
+      digitalWrite(LED_PIN, HIGH);   // Turn the LED on (HIGH is the voltage level)
+      Serial.println("Alarm led turned on");
+    }
+    else {
+
+      digitalWrite(LED_PIN, LOW);    // Turn the LED off by making the voltage LOW
+      Serial.println("Alarm led turned off");
+    }
+  }
   else {
 
-    Serial.println("ERRORE: Topic MQTT non valido.");
+    Serial.println("ERROR: MQTT topic not valid");
   }
 
   Serial.println();
@@ -231,6 +232,8 @@ void setup() {
   
   Serial.begin(115200);
   delay(100);
+
+  pinMode(LED_PIN, OUTPUT);     // Initialize the digital pin LED_PIN as an output
   
   // Initialize the DHT sensors
   dht_int.begin();

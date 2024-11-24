@@ -1,4 +1,4 @@
-from influxdb_client import InfluxDBClient      # InfluxDB
+from influxdb_client import InfluxDBClient, Point      # InfluxDB
 
 import numpy as np
 import time
@@ -8,6 +8,17 @@ import datetime
 import pandas as pd
 from prophet import Prophet
 
+import paho.mqtt.publish as publish     # MQTT
+
+
+
+# Topic #
+
+# InfluxDB
+topicInflux_temperatura = "temperature"
+topicInflux_allarme = "alarm"
+
+topicMqtt_allarme = "alarm_led"
 
 
 # InfluxDB mio (in locale) #
@@ -17,13 +28,12 @@ bucket = "iotdb"
 token = "WovvdX_JQ1IQcXgW10JMleWYgazmWt9vYftJKeCX39fHuFvP2i0ElyqWju3ausXWemtwhgwKSp_MI54aa9Lz7g=="
 influx_IP = "http://localhost:8086"
 
-topicInflux_temperatura = "temperature"
-
 # Establish a connection
 client_influx = InfluxDBClient(url=influx_IP, token=token, org=org)
 
 # Instantiate the WriteAPI and QueryAPI
 query_api = client_influx.query_api()
+write_api = client_influx.write_api()
 
 
 
@@ -93,7 +103,7 @@ plotComponents_outdoor = model_outdoor.plot_components(forecast_outdoor)
 
 
 
-# Recupero ciclicamente i dati dal DB e li analizzo per controllare la dispersione di calore #
+# Recupero ciclicamente i dati dal DB e li analizzo per controllare un'eventuale dispersione di calore #
 
 
 # Query delle temperature rilevate negli ultimi minuti
@@ -101,6 +111,8 @@ lastMinutes = '2'
 query_lastTemperatures =    'from(bucket: "' + bucket + '")' \
                             '|> range(start: -' + lastMinutes + 'm)' \
                             '|> filter(fn: (r) => r._measurement == "' + topicInflux_temperatura + '")'
+
+allarmeAttivato = False
 
 while True:
 
@@ -151,8 +163,36 @@ while True:
         print("-----------------------------")
         print(" ALARM: HVAC waste detected!")
         print("-----------------------------")
+
+
+        if not allarmeAttivato:     # Viene eseguito solo alla prima avvisaglia, poi aspetta di tornare a una situazione di normalita'
+
+            allarmeAttivato = True
+
+
+            # Memorizzo l'evento di allarme su InfluxDB #
+
+            # Create and write the point
+            p = Point(topicInflux_allarme).field("waste", 1)
+            write_api.write(bucket=bucket, org=org, record=p)
+            print("Alarm event stored on database InfluxDB\n")
+
+
+            # Accende il led di allarme sull'ESP (1 = true)
+            publish.single(topicMqtt_allarme, 1, hostname="localhost")      # MQTT
+            print("[" + datetime.datetime.now().strftime('%H:%M:%S') + ", MQTT]  Sent message to turn on the alarm led\n")
+
     else:
+
         print("Temperature data processed successfully")
+
+        if allarmeAttivato:
+
+            allarmeAttivato = False
+
+            # Spegne il led di allarme sull'ESP (0 = false)
+            publish.single(topicMqtt_allarme, 0, hostname="localhost")          # MQTT
+            print("[" + datetime.datetime.now().strftime('%H:%M:%S') + ", MQTT]  Sent message to turn off the alarm led\n")
 
 
     time.sleep(30)

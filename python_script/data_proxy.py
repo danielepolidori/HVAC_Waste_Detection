@@ -16,7 +16,7 @@ logging.basicConfig(level=logging.INFO)
 
 async def main():
 
-    ip_coap_server = "192.168.109.4"    # Indirizzo IP dell'ESP
+    ip_coap_server = "192.168.208.4"    # Indirizzo IP dell'ESP
 
 
     # Topic #
@@ -42,11 +42,8 @@ async def main():
     token = "WovvdX_JQ1IQcXgW10JMleWYgazmWt9vYftJKeCX39fHuFvP2i0ElyqWju3ausXWemtwhgwKSp_MI54aa9Lz7g=="
     influx_IP = "http://localhost:8086"
 
-    # Establish a connection
-    client_influx = InfluxDBClient(url=influx_IP, token=token, org=org)
-
-    # Instantiate the WriteAPI and QueryAPI
-    write_api = client_influx.write_api()
+    client_influx = InfluxDBClient(url=influx_IP, token=token, org=org)         # Establish a connection
+    write_api = client_influx.write_api()                                       # Instantiate the WriteAPI
 
 
 
@@ -88,6 +85,7 @@ async def main():
         except Exception as e:
             print("[CoAP] Failed to fetch resource for endpoint " + topicCoap_temperaturaInterna + ":")
             print(e)
+            print()
         else:
             #response_temperaturaInterna_value = float(response_temperaturaInterna.payload.decode("utf-8"))
             response_temperaturaInterna_value = float(response_temperaturaInterna.payload.decode("utf-8")) - 3.0    #tmp
@@ -99,7 +97,7 @@ async def main():
             # Create and write the point
             p = Point(topicInflux_temperatura).field("indoor", response_temperaturaInterna_value)
             write_api.write(bucket=bucket, org=org, record=p)
-            print("Data stored on database InfluxDB\n")
+            print("Temperature value stored on database InfluxDB\n")
 
 
         # Esterna #
@@ -115,6 +113,7 @@ async def main():
         except Exception as e:
             print("[CoAP] Failed to fetch resource for endpoint " + topicCoap_temperaturaEsterna + ":")
             print(e)
+            print()
         else:
             response_temperaturaEsterna_value = float(response_temperaturaEsterna.payload.decode("utf-8"))
 
@@ -125,7 +124,7 @@ async def main():
             # Create and write the point
             p = Point(topicInflux_temperatura).field("outdoor", response_temperaturaEsterna_value)
             write_api.write(bucket=bucket, org=org, record=p)
-            print("Data stored on database InfluxDB\n")
+            print("Temperature value stored on database InfluxDB\n")
 
 
         time.sleep(5)
