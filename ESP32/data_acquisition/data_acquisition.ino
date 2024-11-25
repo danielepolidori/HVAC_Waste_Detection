@@ -52,7 +52,7 @@ Thing::CoAP::ESP::UDPPacketProvider udpProvider;
 /* MQTT */
 PubSubClient clientMQTT;
 WiFiClient clientWiFi;
-const char* IP_MQTT_BROKER = "192.168.208.12";    // Indirizzo IP del mio pc con mosquitto
+const char* IP_MQTT_BROKER = "192.168.252.12";    // Indirizzo IP del mio pc con mosquitto
 
 
 /* Variabili globali */

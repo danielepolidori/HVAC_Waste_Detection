@@ -48,7 +48,7 @@ query_allTemperatures = 'from(bucket: "' + bucket + '")' \
                         #'|> aggregateWindow(every: ' + freqDataAggregation + ', fn: mean)'
 
 results = query_api.query(org=org, query=query_allTemperatures)        # Return the table of all the temperatures
-print("[" + datetime.datetime.now().strftime('%H:%M:%S') + "] Temperature data (all) received from database InfluxDB\n")
+print("[" + datetime.datetime.now().strftime('%H:%M:%S') + "]  Temperature data (all) received from database InfluxDB\n")
 
 datetimeValues_allIndoorTemperatures = []
 datetimeValues_allOutdoorTemperatures = []
@@ -116,15 +116,11 @@ allarmeAttivato = False
 
 while True:
 
-    print()
-    print()
-    print("***")
-    print()
-    print()
+    print("\n\n***\n\n")
 
 
     results = query_api.query(org=org, query=query_lastTemperatures)        # Return the table of the temperatures
-    print("[" + datetime.datetime.now().strftime('%H:%M:%S') + "] Temperature data (of last " + lastMinutes + " minutes) received from database InfluxDB\n")
+    print("[" + datetime.datetime.now().strftime('%H:%M:%S') + "]  Temperature data (of last " + lastMinutes + " minutes) received from database InfluxDB\n")
 
     lastIndoorTemperatures = []
     lastOutdoorTemperatures = []
@@ -137,14 +133,13 @@ while True:
 
     print("Last indoor temperatures:")
     print(lastIndoorTemperatures)
-    #print(np.var(lastIndoorTemperatures))        # Varianza
+    print(np.var(lastIndoorTemperatures))        # Varianza
     print()
 
     print("Last outdoor temperatures:")
     print(lastOutdoorTemperatures)
-    #print(np.var(lastOutdoorTemperatures))       # Varianza
-    print()
-    print()
+    print(np.var(lastOutdoorTemperatures))       # Varianza
+    print("\n")
 
 
     # Controllo un'eventuale dispersione di calore (identificata tramite rapidi cambiamenti di temperatura) #
@@ -175,12 +170,12 @@ while True:
             # Create and write the point
             p = Point(topicInflux_allarme).field("waste", 1)
             write_api.write(bucket=bucket, org=org, record=p)
-            print("Alarm event stored on database InfluxDB\n")
+            print("Alarm event stored on database InfluxDB")
 
 
             # Accende il led di allarme sull'ESP (1 = true)
             publish.single(topicMqtt_allarme, 1, hostname="localhost")      # MQTT
-            print("[" + datetime.datetime.now().strftime('%H:%M:%S') + ", MQTT]  Sent message to turn on the alarm led\n")
+            print("[MQTT]  Sent message to turn on the alarm led")
 
     else:
 
@@ -192,7 +187,7 @@ while True:
 
             # Spegne il led di allarme sull'ESP (0 = false)
             publish.single(topicMqtt_allarme, 0, hostname="localhost")          # MQTT
-            print("[" + datetime.datetime.now().strftime('%H:%M:%S') + ", MQTT]  Sent message to turn off the alarm led\n")
+            print("[MQTT]  Sent message to turn off the alarm led")
 
 
     time.sleep(30)
