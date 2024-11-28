@@ -17,8 +17,9 @@ import paho.mqtt.publish as publish     # MQTT
 # InfluxDB
 topicInflux_temperatura = "temperature"
 topicInflux_allarme = "alarm"
+topicInflux_forecast = "forecast"
 
-topicMqtt_allarme = "alarm_led"
+topicMqtt_allarme = "alarm_led"     # MQTT
 
 
 # InfluxDB mio (in locale) #
@@ -37,13 +38,13 @@ write_api = client_influx.write_api()
 
 
 
-# Forecast #
+# Forecast #2024-11-19T15:33:00Z
 
 
 # Query di tutte le temperature presenti sul DB
 #freqDataAggregation = "10m"
 query_allTemperatures = 'from(bucket: "' + bucket + '")' \
-                        '|> range(start: 2024-11-19T15:33:00Z)' \
+                        '|> range(start: -24h)' \
                         '|> filter(fn: (r) => r._measurement == "' + topicInflux_temperatura + '")' #\
                         #'|> aggregateWindow(every: ' + freqDataAggregation + ', fn: mean)'
 
@@ -114,6 +115,16 @@ query_lastTemperatures =    'from(bucket: "' + bucket + '")' \
 
 allarmeAttivato = False
 
+# Forecast
+forecast_indoor = forecast_indoor[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].tail(timesForecast).reset_index(drop=True)
+print(forecast_indoor)
+print(forecast_indoor.loc[3])
+print(forecast_indoor['yhat'].loc[3])
+forecast_outdoor = forecast_outdoor[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].tail(timesForecast).reset_index(drop=True)
+index_forecastIndoor = 0
+index_forecastOutdoor = 0
+
+
 while True:
 
     print("\n\n***\n\n")
@@ -133,12 +144,14 @@ while True:
 
     print("Last indoor temperatures:")
     print(lastIndoorTemperatures)
-    print(np.var(lastIndoorTemperatures))        # Varianza
+    #print(np.var(lastIndoorTemperatures))       # Varianza
+    #print(np.mean(lastIndoorTemperatures))      # Media
     print()
 
     print("Last outdoor temperatures:")
     print(lastOutdoorTemperatures)
-    print(np.var(lastOutdoorTemperatures))       # Varianza
+    #print(np.var(lastOutdoorTemperatures))      # Varianza
+    #print(np.mean(lastOutdoorTemperatures))     # Media
     print("\n")
 
 
@@ -168,8 +181,8 @@ while True:
             # Memorizzo l'evento di allarme su InfluxDB #
 
             # Create and write the point
-            p = Point(topicInflux_allarme).field("waste", 1)
-            write_api.write(bucket=bucket, org=org, record=p)
+            p_alarm = Point(topicInflux_allarme).field("waste", 1)
+            write_api.write(bucket=bucket, org=org, record=p_alarm)
             print("Alarm event stored on database InfluxDB")
 
 
@@ -186,8 +199,22 @@ while True:
             allarmeAttivato = False
 
             # Spegne il led di allarme sull'ESP (0 = false)
-            publish.single(topicMqtt_allarme, 0, hostname="localhost")          # MQTT
+            publish.single(topicMqtt_allarme, 0, hostname="localhost")      # MQTT
             print("[MQTT]  Sent message to turn off the alarm led")
+
+
+    # Inserisco i valori del forecast su InfluxDB (man mano che quell'orario viene raggiunto) #
+
+    # Indoor
+    if (index_forecastIndoor < timesForecast
+        and datetime.datetime.now() > forecast_indoor.loc[index_forecastIndoor]):
+
+        # Create and write the point
+        #p = Point(topicInflux_forecast).field("yhat", ...)
+        write_api.write(bucket=bucket, org=org, record=p)
+        print("Alarm event stored on database InfluxDB")
+
+        index_forecastIndoor = index_forecastIndoor + 1
 
 
     time.sleep(30)
