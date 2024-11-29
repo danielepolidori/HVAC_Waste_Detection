@@ -16,7 +16,7 @@ logging.basicConfig(level=logging.INFO)
 
 async def main():
 
-    ip_coap_server = "192.168.212.4"    # Indirizzo IP dell'ESP
+    ip_coap_server = "192.168.232.4"    # Indirizzo IP dell'ESP
 
 
     # Topic #
@@ -127,7 +127,9 @@ async def main():
             print("Temperature value stored on database InfluxDB\n")
 
 
-        time.sleep(5)
+        waitSec = 5
+        print("Waiting " + str(waitSec) + " seconds...\n")
+        time.sleep(waitSec)
 
 if __name__ == "__main__":
         asyncio.run(main())

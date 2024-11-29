@@ -17,7 +17,8 @@ import paho.mqtt.publish as publish     # MQTT
 # InfluxDB
 topicInflux_temperatura = "temperature"
 topicInflux_allarme = "alarm"
-topicInflux_forecast = "forecast"
+topicInflux_forecastIndoor = "forecast_indoor"
+topicInflux_forecastOutdoor = "forecast_outdoor"
 
 topicMqtt_allarme = "alarm_led"     # MQTT
 
@@ -38,13 +39,13 @@ write_api = client_influx.write_api()
 
 
 
-# Forecast #2024-11-19T15:33:00Z
+# Forecast #
 
 
 # Query di tutte le temperature presenti sul DB
 #freqDataAggregation = "10m"
 query_allTemperatures = 'from(bucket: "' + bucket + '")' \
-                        '|> range(start: -24h)' \
+                        '|> range(start: 2024-11-19T15:33:00Z)' \
                         '|> filter(fn: (r) => r._measurement == "' + topicInflux_temperatura + '")' #\
                         #'|> aggregateWindow(every: ' + freqDataAggregation + ', fn: mean)'
 
@@ -77,7 +78,8 @@ model_outdoor = Prophet()
 model_indoor.fit(df_allIndoorTemperatures)
 model_outdoor.fit(df_allOutdoorTemperatures)
 
-freqForecast = "10min"      # Ogni quanto tempo
+#freqForecast = "10min"      # Ogni quanto tempo
+freqForecast = "1min"      # Ogni quanto tempo
 timesForecast = 6           # Quante volte
 future_indoor = model_indoor.make_future_dataframe(periods=timesForecast, freq=freqForecast)
 future_outdoor = model_outdoor.make_future_dataframe(periods=timesForecast, freq=freqForecast)
@@ -117,9 +119,6 @@ allarmeAttivato = False
 
 # Forecast
 forecast_indoor = forecast_indoor[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].tail(timesForecast).reset_index(drop=True)
-print(forecast_indoor)
-print(forecast_indoor.loc[3])
-print(forecast_indoor['yhat'].loc[3])
 forecast_outdoor = forecast_outdoor[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].tail(timesForecast).reset_index(drop=True)
 index_forecastIndoor = 0
 index_forecastOutdoor = 0
@@ -201,20 +200,55 @@ while True:
             # Spegne il led di allarme sull'ESP (0 = false)
             publish.single(topicMqtt_allarme, 0, hostname="localhost")      # MQTT
             print("[MQTT]  Sent message to turn off the alarm led")
+    print()
 
 
     # Inserisco i valori del forecast su InfluxDB (man mano che quell'orario viene raggiunto) #
 
+    fieldInflux_yhat = "yhat"
+    fieldInflux_yhatLow = "yhat_lower"
+    fieldInflux_yhatUp = "yhat_upper"
+
     # Indoor
     if (index_forecastIndoor < timesForecast
-        and datetime.datetime.now() > forecast_indoor.loc[index_forecastIndoor]):
+        and datetime.datetime.now() > forecast_indoor['ds'].loc[index_forecastIndoor]):
 
-        # Create and write the point
-        #p = Point(topicInflux_forecast).field("yhat", ...)
-        write_api.write(bucket=bucket, org=org, record=p)
-        print("Alarm event stored on database InfluxDB")
+        # Create and write the points #
+
+        p_forecastIndoor_yhat = Point(topicInflux_forecastIndoor).field(fieldInflux_yhat, forecast_indoor[fieldInflux_yhat].loc[index_forecastIndoor])
+        p_forecastIndoor_yhatLow = Point(topicInflux_forecastIndoor).field(fieldInflux_yhatLow, forecast_indoor[fieldInflux_yhatLow].loc[index_forecastIndoor])
+        p_forecastIndoor_yhatUp = Point(topicInflux_forecastIndoor).field(fieldInflux_yhatUp, forecast_indoor[fieldInflux_yhatUp].loc[index_forecastIndoor])
+
+        write_api.write(bucket=bucket, org=org, record=p_forecastIndoor_yhat)
+        write_api.write(bucket=bucket, org=org, record=p_forecastIndoor_yhatLow)
+        write_api.write(bucket=bucket, org=org, record=p_forecastIndoor_yhatUp)
+
+        print("Forecasted indoor temperature values stored on database InfluxDB")
+
 
         index_forecastIndoor = index_forecastIndoor + 1
 
+    # Outdoor
+    if (index_forecastOutdoor < timesForecast
+        and datetime.datetime.now() > forecast_outdoor['ds'].loc[index_forecastOutdoor]):
 
-    time.sleep(30)
+        # Create and write the points #
+
+        p_forecastOutdoor_yhat = Point(topicInflux_forecastOutdoor).field(fieldInflux_yhat, forecast_outdoor[fieldInflux_yhat].loc[index_forecastOutdoor])
+        p_forecastOutdoor_yhatLow = Point(topicInflux_forecastOutdoor).field(fieldInflux_yhatLow, forecast_outdoor[fieldInflux_yhatLow].loc[index_forecastOutdoor])
+        p_forecastOutdoor_yhatUp = Point(topicInflux_forecastOutdoor).field(fieldInflux_yhatUp, forecast_outdoor[fieldInflux_yhatUp].loc[index_forecastOutdoor])
+
+        write_api.write(bucket=bucket, org=org, record=p_forecastOutdoor_yhat)
+        write_api.write(bucket=bucket, org=org, record=p_forecastOutdoor_yhatLow)
+        write_api.write(bucket=bucket, org=org, record=p_forecastOutdoor_yhatUp)
+
+        print("Forecasted outdoor temperature values stored on database InfluxDB")
+
+
+        index_forecastOutdoor = index_forecastOutdoor + 1
+    print()
+
+
+    waitSec = 30
+    print("\n\nWaiting " + str(waitSec) + " seconds...")
+    time.sleep(waitSec)
