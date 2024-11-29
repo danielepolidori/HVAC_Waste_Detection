@@ -78,8 +78,7 @@ model_outdoor = Prophet()
 model_indoor.fit(df_allIndoorTemperatures)
 model_outdoor.fit(df_allOutdoorTemperatures)
 
-#freqForecast = "10min"      # Ogni quanto tempo
-freqForecast = "1min"      # Ogni quanto tempo
+freqForecast = "10min"      # Ogni quanto tempo
 timesForecast = 6           # Quante volte
 future_indoor = model_indoor.make_future_dataframe(periods=timesForecast, freq=freqForecast)
 future_outdoor = model_outdoor.make_future_dataframe(periods=timesForecast, freq=freqForecast)
@@ -126,7 +125,7 @@ index_forecastOutdoor = 0
 
 while True:
 
-    print("\n\n***\n\n")
+    print("\n\n\n***\n\n\n")
 
 
     results = query_api.query(org=org, query=query_lastTemperatures)        # Return the table of the temperatures
@@ -141,22 +140,18 @@ while True:
             elif record.get_field() == "outdoor":
                 lastOutdoorTemperatures.append(record.get_value())
 
-    print("Last indoor temperatures:")
+    print("LAST indoor temperatures:")
     print(lastIndoorTemperatures)
-    #print(np.var(lastIndoorTemperatures))       # Varianza
-    #print(np.mean(lastIndoorTemperatures))      # Media
-    print()
+    print("(var: %0.4f, mean: %0.2f)\n" % (np.var(lastIndoorTemperatures), np.mean(lastIndoorTemperatures)))
 
-    print("Last outdoor temperatures:")
+    print("LAST outdoor temperatures:")
     print(lastOutdoorTemperatures)
-    #print(np.var(lastOutdoorTemperatures))      # Varianza
-    #print(np.mean(lastOutdoorTemperatures))     # Media
-    print("\n")
+    print("(var: %0.4f, mean: %0.2f)\n\n" % (np.var(lastOutdoorTemperatures), np.mean(lastOutdoorTemperatures)))
 
 
     # Controllo un'eventuale dispersione di calore (identificata tramite rapidi cambiamenti di temperatura) #
 
-    sogliaVarianza = 0.01       # Una temperatura costante (in rapido cambiamento) ha una varianza minore (maggiore) di questo valore
+    sogliaVarianza = 0.02       # Una temperatura costante (in rapido cambiamento) ha una varianza minore (maggiore) di questo valore
 
     minTemperaturaIniziale = min(lastIndoorTemperatures[0], lastOutdoorTemperatures[0])
     maxTemperaturaIniziale = max(lastIndoorTemperatures[0], lastOutdoorTemperatures[0])
@@ -167,9 +162,7 @@ while True:
         or (np.var(lastIndoorTemperatures) < sogliaVarianza <= np.var(lastOutdoorTemperatures)              # (oppure viceversa)
             and minTemperaturaIniziale < np.mean(lastOutdoorTemperatures) < maxTemperaturaIniziale)):
 
-        print("-----------------------------")
-        print(" ALARM: HVAC waste detected!")
-        print("-----------------------------")
+        print("-----------------------------\n ALARM: HVAC waste detected!\n-----------------------------")
 
 
         if not allarmeAttivato:     # Viene eseguito solo alla prima avvisaglia, poi aspetta di tornare a una situazione di normalita'
@@ -200,7 +193,6 @@ while True:
             # Spegne il led di allarme sull'ESP (0 = false)
             publish.single(topicMqtt_allarme, 0, hostname="localhost")      # MQTT
             print("[MQTT]  Sent message to turn off the alarm led")
-    print()
 
 
     # Inserisco i valori del forecast su InfluxDB (man mano che quell'orario viene raggiunto) #
@@ -209,21 +201,29 @@ while True:
     fieldInflux_yhatLow = "yhat_lower"
     fieldInflux_yhatUp = "yhat_upper"
 
+    printedForecastedIndoor = False         # Per migliorare la stampa dei messaggi
+
     # Indoor
     if (index_forecastIndoor < timesForecast
         and datetime.datetime.now() > forecast_indoor['ds'].loc[index_forecastIndoor]):
 
         # Create and write the points #
 
-        p_forecastIndoor_yhat = Point(topicInflux_forecastIndoor).field(fieldInflux_yhat, forecast_indoor[fieldInflux_yhat].loc[index_forecastIndoor])
-        p_forecastIndoor_yhatLow = Point(topicInflux_forecastIndoor).field(fieldInflux_yhatLow, forecast_indoor[fieldInflux_yhatLow].loc[index_forecastIndoor])
-        p_forecastIndoor_yhatUp = Point(topicInflux_forecastIndoor).field(fieldInflux_yhatUp, forecast_indoor[fieldInflux_yhatUp].loc[index_forecastIndoor])
+        forecastIndoor_yhat =  forecast_indoor[fieldInflux_yhat].loc[index_forecastIndoor]
+        forecastIndoor_yhatLow = forecast_indoor[fieldInflux_yhatLow].loc[index_forecastIndoor]
+        forecastIndoor_yhatUp = forecast_indoor[fieldInflux_yhatUp].loc[index_forecastIndoor]
+
+        p_forecastIndoor_yhat = Point(topicInflux_forecastIndoor).field(fieldInflux_yhat, forecastIndoor_yhat)
+        p_forecastIndoor_yhatLow = Point(topicInflux_forecastIndoor).field(fieldInflux_yhatLow, forecastIndoor_yhatLow)
+        p_forecastIndoor_yhatUp = Point(topicInflux_forecastIndoor).field(fieldInflux_yhatUp, forecastIndoor_yhatUp)
 
         write_api.write(bucket=bucket, org=org, record=p_forecastIndoor_yhat)
         write_api.write(bucket=bucket, org=org, record=p_forecastIndoor_yhatLow)
         write_api.write(bucket=bucket, org=org, record=p_forecastIndoor_yhatUp)
 
-        print("Forecasted indoor temperature values stored on database InfluxDB")
+        print("\n\n\nFORECASTED indoor temperature value stored on database InfluxDB")
+        print("(actual: %0.2f, forecasted: %0.2f [%0.2f, %0.2f])\n" % (lastIndoorTemperatures[-1], forecastIndoor_yhat, forecastIndoor_yhatLow, forecastIndoor_yhatUp))         # Evaluation
+        printedForecastedIndoor = True
 
 
         index_forecastIndoor = index_forecastIndoor + 1
@@ -234,21 +234,27 @@ while True:
 
         # Create and write the points #
 
-        p_forecastOutdoor_yhat = Point(topicInflux_forecastOutdoor).field(fieldInflux_yhat, forecast_outdoor[fieldInflux_yhat].loc[index_forecastOutdoor])
-        p_forecastOutdoor_yhatLow = Point(topicInflux_forecastOutdoor).field(fieldInflux_yhatLow, forecast_outdoor[fieldInflux_yhatLow].loc[index_forecastOutdoor])
-        p_forecastOutdoor_yhatUp = Point(topicInflux_forecastOutdoor).field(fieldInflux_yhatUp, forecast_outdoor[fieldInflux_yhatUp].loc[index_forecastOutdoor])
+        forecastOutdoor_yhat = forecast_outdoor[fieldInflux_yhat].loc[index_forecastOutdoor]
+        forecastOutdoor_yhatLow = forecast_outdoor[fieldInflux_yhatLow].loc[index_forecastOutdoor]
+        forecastOutdoor_yhatUp = forecast_outdoor[fieldInflux_yhatUp].loc[index_forecastOutdoor]
+
+        p_forecastOutdoor_yhat = Point(topicInflux_forecastOutdoor).field(fieldInflux_yhat, forecastOutdoor_yhat)
+        p_forecastOutdoor_yhatLow = Point(topicInflux_forecastOutdoor).field(fieldInflux_yhatLow, forecastOutdoor_yhatLow)
+        p_forecastOutdoor_yhatUp = Point(topicInflux_forecastOutdoor).field(fieldInflux_yhatUp, forecastOutdoor_yhatUp)
 
         write_api.write(bucket=bucket, org=org, record=p_forecastOutdoor_yhat)
         write_api.write(bucket=bucket, org=org, record=p_forecastOutdoor_yhatLow)
         write_api.write(bucket=bucket, org=org, record=p_forecastOutdoor_yhatUp)
 
-        print("Forecasted outdoor temperature values stored on database InfluxDB")
+        if not printedForecastedIndoor:
+            print("\n\n")
+        print("FORECASTED outdoor temperature value stored on database InfluxDB")
+        print("(actual: %0.2f, forecasted: %0.2f [%0.2f, %0.2f])" % (lastOutdoorTemperatures[-1], forecastOutdoor_yhat, forecastOutdoor_yhatLow, forecastOutdoor_yhatUp))       # Evaluation
 
 
         index_forecastOutdoor = index_forecastOutdoor + 1
-    print()
 
 
     waitSec = 30
-    print("\n\nWaiting " + str(waitSec) + " seconds...")
+    print("\n\n\nWaiting " + str(waitSec) + " seconds...")
     time.sleep(waitSec)
