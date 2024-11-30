@@ -16,7 +16,7 @@ logging.basicConfig(level=logging.INFO)
 
 async def main():
 
-    ip_coap_server = "192.168.232.4"    # Indirizzo IP dell'ESP
+    ip_coap_server = "192.168.142.4"    # Indirizzo IP dell'ESP
 
 
     # Topic #
@@ -77,11 +77,13 @@ async def main():
         # mtype=NON:  request/response using non confirmable messages
         req_temperaturaInterna = Message(mtype=NON, code=GET, uri="coap://" + ip_coap_server + "/" + topicCoap_temperaturaInterna)
 
-        print("[" + datetime.datetime.now().strftime('%H:%M:%S') + ", CoAP]  Sending GET request for endpoint " + topicCoap_temperaturaInterna + "...\n")
+        print("[%s, CoAP]  Sending GET request for endpoint %s...\n" % (datetime.datetime.now().strftime('%H:%M:%S'), topicCoap_temperaturaInterna))
 
         try:
             # Wait until the response is ready
+            datetimeStart_interna = datetime.datetime.now()
             response_temperaturaInterna = await protocol.request(req_temperaturaInterna).response
+            datetimeStop_interna = datetime.datetime.now()
         except Exception as e:
             print("[CoAP] Failed to fetch resource for endpoint " + topicCoap_temperaturaInterna + ":")
             print(e)
@@ -91,7 +93,7 @@ async def main():
             response_temperaturaInterna_value = float(response_temperaturaInterna.payload.decode("utf-8")) - 3.0    #tmp
 
             # “2.05 Content” is a successful message (is the rough equivalent of HTTP’s “200 OK”)
-            print("[%s, CoAP]  RESULT for endpoint %s:\n(%s)  %0.2f" % (datetime.datetime.now().strftime('%H:%M:%S'), topicCoap_temperaturaInterna, response_temperaturaInterna.code, response_temperaturaInterna_value))
+            print("[%s, CoAP]  RESULT for endpoint %s:\n(%s, %d millis)  %0.2f" % (datetimeStop_interna.strftime('%H:%M:%S'), topicCoap_temperaturaInterna, response_temperaturaInterna.code, (datetimeStop_interna-datetimeStart_interna).total_seconds()*1000, response_temperaturaInterna_value))
 
             # InfluxDB #
             # Create and write the point
@@ -105,11 +107,13 @@ async def main():
         # mtype=NON:  request/response using non confirmable messages
         req_temperaturaEsterna = Message(mtype=NON, code=GET, uri="coap://" + ip_coap_server + "/" + topicCoap_temperaturaEsterna)
 
-        print("[" + datetime.datetime.now().strftime('%H:%M:%S') + ", CoAP]  Sending GET request for endpoint " + topicCoap_temperaturaEsterna + "...\n")
+        print("[%s, CoAP]  Sending GET request for endpoint %s...\n" % (datetime.datetime.now().strftime('%H:%M:%S'), topicCoap_temperaturaEsterna))
 
         try:
             # Wait until the response is ready
+            datetimeStart_esterna = datetime.datetime.now()
             response_temperaturaEsterna = await protocol.request(req_temperaturaEsterna).response
+            datetimeStop_esterna = datetime.datetime.now()
         except Exception as e:
             print("[CoAP] Failed to fetch resource for endpoint " + topicCoap_temperaturaEsterna + ":")
             print(e)
@@ -118,7 +122,7 @@ async def main():
             response_temperaturaEsterna_value = float(response_temperaturaEsterna.payload.decode("utf-8"))
 
             # “2.05 Content” is a successful message (is the rough equivalent of HTTP’s “200 OK”)
-            print("[%s, CoAP]  RESULT for endpoint %s:\n(%s)  %0.2f" % (datetime.datetime.now().strftime('%H:%M:%S'), topicCoap_temperaturaEsterna, response_temperaturaEsterna.code, response_temperaturaEsterna_value))
+            print("[%s, CoAP]  RESULT for endpoint %s:\n(%s, %d millis)  %0.2f" % (datetimeStop_esterna.strftime('%H:%M:%S'), topicCoap_temperaturaEsterna, response_temperaturaEsterna.code, (datetimeStop_esterna-datetimeStart_esterna).total_seconds()*1000, response_temperaturaEsterna_value))
 
             # InfluxDB #
             # Create and write the point
