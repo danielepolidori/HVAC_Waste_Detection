@@ -20,26 +20,35 @@ daniele.polidori2@studio.unibo.it}}
 
 
 \section{Introduction}
-In this project I implemented an IoT system that monitors the temperature of an house, to prevent useless HVAC consumption, detecting it by rapid temperature changes. In this way, you can reduce energy usage, save money on the bills and is also a good procedure to follow for environmental reasons.\\
-In this report I show the structure of the system that I've realized. Then I show the experimental setup and results that I've obtained. At the end I present some thoughts on the experiments' results.
+I implemented an IoT system that monitors the temperature of an house, to prevent useless HVAC consumption, detecting it by rapid temperature changes. In this way, you can reduce energy usage, save money on the bills and [it's also a good procedure to follow for environmental reasons / has also good environmental reasons].\\
+In this report I show the components and the structure of the system that I've realized. Then I show the experimental setup and results that I've obtained; at the end, I present some thoughts on them.
 
 
 \section{Project’s Architecture}
-% iot pipeline
-...
+The system is composed by an ESP-WROOM-32 board linked to two DHT22 sensors (one placed inside the house and one outside) and a LED.\\
+The board periodically collects indoor and outdoor temperature values. They are constantly analysed: if the indoor temperature values rapidly change ([going towards] the [current] outdoor ones) the LED is temporarily turned on, showing an alarm [signal/feedback] to the user. In this way, if the temperature change is caused by, e.g., an open window, you can save unnecessary HVAC waste. Based on all past data, the system makes a prediction of some future temperature values. The temperature data are continuously sent to a gateway, that stores them, together with the [startings] of the alarm and the forecasted values, on a local time-series database; all data are interactively visualized by a local web application, that show them by means of charts.
+
 
 \section{Project’s Implementation}
-% 1 file esp, 2 file py, influx, forecast, grafana
+% 1 file esp (librerie, coap res, mqtt sub)
+% 2 file py (librerie, coap req, mqtt pub, influx, forecast)
+% grafana
 ...
 
+
 \section{Results}
+% SETUP
+% ogni quanto raccolgo temperature con esp, ogni quanto py le chiede
+% py fa partire i dht e sceglie il rate
 % valori per l'eval (soglia varianza, tempi forecast, tempi queries)
+% RISULTATI / EVALUATION (?)
 % tabelle eval forecast e latency
 %  considerazioni sui risultati
+% considerazioni sul setup
 % sviluppi futuri
 ...
 
-% \subsection{Maintaining the Integrity of the Specifications}
+% \subsection{...}
 % ...
 
 \end{document}
