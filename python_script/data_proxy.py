@@ -4,11 +4,11 @@ import time
 import datetime
 
 from pickle import GET
-from aiocoap import *                   # CoAP
+from aiocoap import *                                   # CoAP
 
-import paho.mqtt.publish as publish     # MQTT
+import paho.mqtt.publish as publish                     # MQTT
 
-from influxdb_client import InfluxDBClient, Point     # InfluxDB
+from influxdb_client import InfluxDBClient, Point       # InfluxDB
 
 
 

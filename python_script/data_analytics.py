@@ -1,4 +1,4 @@
-from influxdb_client import InfluxDBClient, Point      # InfluxDB
+from influxdb_client import InfluxDBClient, Point       # InfluxDB
 
 import numpy as np
 import time
@@ -8,7 +8,7 @@ import datetime
 import pandas as pd
 from prophet import Prophet
 
-import paho.mqtt.publish as publish     # MQTT
+import paho.mqtt.publish as publish                     # MQTT
 
 
 
@@ -129,38 +129,34 @@ while True:
 
 
     results = query_api.query(org=org, query=query_lastTemperatures)        # Return the table of the temperatures
-    print("[" + datetime.datetime.now().strftime('%H:%M:%S') + "]  Temperature data (of last " + lastMinutes + " minutes) received from database InfluxDB\n")
+    print("[" + datetime.datetime.now().strftime('%H:%M:%S') + "]  Temperature data (of last " + lastMinutes + " min) received from database InfluxDB\n")
 
     lastIndoorTemperatures = []
-    lastOutdoorTemperatures = []
+    firstOutdoorTemperatureOfLastMinutes = -100         # Considero solo il primo dei valori di temperatura esterna degli ultimi minuti
     for table in results:
         for record in table.records:
             if record.get_field() == "indoor":
                 lastIndoorTemperatures.append(record.get_value())
-            elif record.get_field() == "outdoor":
-                lastOutdoorTemperatures.append(record.get_value())
+            elif record.get_field() == "outdoor" and firstOutdoorTemperatureOfLastMinutes == -100:      # Se non ho ancora salvato il valore iniziale
+                firstOutdoorTemperatureOfLastMinutes = record.get_value()
 
     print("LAST indoor temperatures:")
     print(lastIndoorTemperatures)
     print("(var: %0.4f, mean: %0.2f)\n" % (np.var(lastIndoorTemperatures), np.mean(lastIndoorTemperatures)))
 
-    print("LAST outdoor temperatures:")
-    print(lastOutdoorTemperatures)
-    print("(var: %0.4f, mean: %0.2f)\n\n" % (np.var(lastOutdoorTemperatures), np.mean(lastOutdoorTemperatures)))
+    print("Outdoor temperature (2 min ago):   %0.2f\n\n" % firstOutdoorTemperatureOfLastMinutes)
 
 
     # Controllo un'eventuale dispersione di calore (identificata tramite rapidi cambiamenti di temperatura) #
 
     sogliaVarianza = 0.02       # Una temperatura costante (in rapido cambiamento) ha una varianza minore (maggiore) di questo valore
 
-    minTemperaturaIniziale = min(lastIndoorTemperatures[0], lastOutdoorTemperatures[0])
-    maxTemperaturaIniziale = max(lastIndoorTemperatures[0], lastOutdoorTemperatures[0])
+    minTemperaturaIniziale = min(lastIndoorTemperatures[0], firstOutdoorTemperatureOfLastMinutes)
+    maxTemperaturaIniziale = max(lastIndoorTemperatures[0], firstOutdoorTemperatureOfLastMinutes)
 
     # La varianza di una variabile statistica fornisce una misura della variabilita' dei valori assunti dalla variabile stessa
-    if ((   np.var(lastOutdoorTemperatures) < sogliaVarianza <= np.var(lastIndoorTemperatures)              # Se la temperatura interna ha un cambiamento rapido e quella esterna e' costante...
-            and minTemperaturaIniziale < np.mean(lastIndoorTemperatures) < maxTemperaturaIniziale)          # ... e le due temperature si stanno avvicinando
-        or (np.var(lastIndoorTemperatures) < sogliaVarianza <= np.var(lastOutdoorTemperatures)              # (oppure viceversa)
-            and minTemperaturaIniziale < np.mean(lastOutdoorTemperatures) < maxTemperaturaIniziale)):
+    if (np.var(lastIndoorTemperatures) >= sogliaVarianza                                                # Se la temperatura interna ha un cambiamento rapido...
+        and minTemperaturaIniziale < np.mean(lastIndoorTemperatures) < maxTemperaturaIniziale):         # ... e si sta avvicinando a quella esterna
 
         print("-----------------------------\n ALARM: HVAC waste detected!\n-----------------------------")
 
@@ -222,7 +218,7 @@ while True:
         write_api.write(bucket=bucket, org=org, record=p_forecastIndoor_yhatUp)
 
         print("\n\n\nFORECASTED indoor temperature value stored on database InfluxDB")
-        print("(actual: %0.2f, forecasted: %0.2f [%0.2f, %0.2f])\n" % (lastIndoorTemperatures[-1], forecastIndoor_yhat, forecastIndoor_yhatLow, forecastIndoor_yhatUp))         # Evaluation
+        print("(forecasted: %0.2f [%0.2f, %0.2f])\n" % (forecastIndoor_yhat, forecastIndoor_yhatLow, forecastIndoor_yhatUp))         # Evaluation
         printedForecastedIndoor = True
 
 
@@ -249,7 +245,7 @@ while True:
         if not printedForecastedIndoor:
             print("\n\n")
         print("FORECASTED outdoor temperature value stored on database InfluxDB")
-        print("(actual: %0.2f, forecasted: %0.2f [%0.2f, %0.2f])" % (lastOutdoorTemperatures[-1], forecastOutdoor_yhat, forecastOutdoor_yhatLow, forecastOutdoor_yhatUp))       # Evaluation
+        print("(forecasted: %0.2f [%0.2f, %0.2f])" % (forecastOutdoor_yhat, forecastOutdoor_yhatLow, forecastOutdoor_yhatUp))       # Evaluation
 
 
         index_forecastOutdoor = index_forecastOutdoor + 1
