@@ -16,7 +16,7 @@ logging.basicConfig(level=logging.INFO)
 
 async def main():
 
-    ip_coap_server = "192.168.142.4"    # Indirizzo IP dell'ESP
+    ip_coap_server = "192.168.70.4"    # Indirizzo IP dell'ESP
 
 
     # Topic #
@@ -67,6 +67,14 @@ async def main():
 
     protocol = await Context.create_client_context()
 
+    # Evaluation (latency)
+    sommaValoriLatenza = 0      # Somma delle latenze
+    numValoriLatenza = 0        # Quanti valori ho sommato (per il calcolo della media)
+    minLatenza = 0              # Latenza minima
+    maxLatenza = 0              # Latenza massima
+    startTime = datetime.datetime.now()
+    evalutationLatencyDone = False
+
     while True:
 
         # Chiedo i valori delle temperature al server ESP #
@@ -85,15 +93,30 @@ async def main():
             response_temperaturaInterna = await protocol.request(req_temperaturaInterna).response
             datetimeStop_interna = datetime.datetime.now()
         except Exception as e:
-            print("[CoAP] Failed to fetch resource for endpoint " + topicCoap_temperaturaInterna + ":")
+            print("[CoAP]  Failed to fetch resource for endpoint " + topicCoap_temperaturaInterna + ":")
             print(e)
             print()
         else:
-            #response_temperaturaInterna_value = float(response_temperaturaInterna.payload.decode("utf-8"))
-            response_temperaturaInterna_value = float(response_temperaturaInterna.payload.decode("utf-8")) - 3.0    #tmp
+            response_temperaturaInterna_value = float(response_temperaturaInterna.payload.decode("utf-8"))
 
-            # “2.05 Content” is a successful message (is the rough equivalent of HTTP’s “200 OK”)
-            print("[%s, CoAP]  RESULT for endpoint %s:\n(%s, %d millis)  %0.2f" % (datetimeStop_interna.strftime('%H:%M:%S'), topicCoap_temperaturaInterna, response_temperaturaInterna.code, (datetimeStop_interna-datetimeStart_interna).total_seconds()*1000, response_temperaturaInterna_value))
+
+            # Evaluation (latency) #
+
+            millisLatenzaCorrente_temperaturaInterna = (datetimeStop_interna - datetimeStart_interna).total_seconds() * 1000
+
+            sommaValoriLatenza = sommaValoriLatenza + millisLatenzaCorrente_temperaturaInterna
+            numValoriLatenza = numValoriLatenza + 1
+            if minLatenza == 0 and maxLatenza == 0:
+                minLatenza = millisLatenzaCorrente_temperaturaInterna
+                maxLatenza = millisLatenzaCorrente_temperaturaInterna
+            elif millisLatenzaCorrente_temperaturaInterna < minLatenza:
+                minLatenza = millisLatenzaCorrente_temperaturaInterna
+            elif millisLatenzaCorrente_temperaturaInterna > maxLatenza:
+                maxLatenza = millisLatenzaCorrente_temperaturaInterna
+
+
+            print("[%s, CoAP]  RESULT for endpoint %s:\n(%s, %d millis)  %0.2f" % (datetimeStop_interna.strftime('%H:%M:%S'), topicCoap_temperaturaInterna, response_temperaturaInterna.code, millisLatenzaCorrente_temperaturaInterna, response_temperaturaInterna_value))        # “2.05 Content” is a successful message (is the rough equivalent of HTTP’s “200 OK”)
+
 
             # InfluxDB #
             # Create and write the point
@@ -115,20 +138,44 @@ async def main():
             response_temperaturaEsterna = await protocol.request(req_temperaturaEsterna).response
             datetimeStop_esterna = datetime.datetime.now()
         except Exception as e:
-            print("[CoAP] Failed to fetch resource for endpoint " + topicCoap_temperaturaEsterna + ":")
+            print("[CoAP]  Failed to fetch resource for endpoint " + topicCoap_temperaturaEsterna + ":")
             print(e)
             print()
         else:
             response_temperaturaEsterna_value = float(response_temperaturaEsterna.payload.decode("utf-8"))
 
-            # “2.05 Content” is a successful message (is the rough equivalent of HTTP’s “200 OK”)
-            print("[%s, CoAP]  RESULT for endpoint %s:\n(%s, %d millis)  %0.2f" % (datetimeStop_esterna.strftime('%H:%M:%S'), topicCoap_temperaturaEsterna, response_temperaturaEsterna.code, (datetimeStop_esterna-datetimeStart_esterna).total_seconds()*1000, response_temperaturaEsterna_value))
+
+            # Evaluation (latency) #
+
+            millisLatenzaCorrente_temperaturaEsterna = (datetimeStop_esterna - datetimeStart_esterna).total_seconds() * 1000
+
+            sommaValoriLatenza = sommaValoriLatenza + millisLatenzaCorrente_temperaturaEsterna
+            numValoriLatenza = numValoriLatenza + 1
+            if minLatenza == 0 and maxLatenza == 0:
+                minLatenza = millisLatenzaCorrente_temperaturaEsterna
+                maxLatenza = millisLatenzaCorrente_temperaturaEsterna
+            elif millisLatenzaCorrente_temperaturaEsterna < minLatenza:
+                minLatenza = millisLatenzaCorrente_temperaturaEsterna
+            elif millisLatenzaCorrente_temperaturaEsterna > maxLatenza:
+                maxLatenza = millisLatenzaCorrente_temperaturaEsterna
+
+
+            print("[%s, CoAP]  RESULT for endpoint %s:\n(%s, %d millis)  %0.2f" % (datetimeStop_esterna.strftime('%H:%M:%S'), topicCoap_temperaturaEsterna, response_temperaturaEsterna.code, millisLatenzaCorrente_temperaturaEsterna, response_temperaturaEsterna_value))        # “2.05 Content” is a successful message (is the rough equivalent of HTTP’s “200 OK”)
+
 
             # InfluxDB #
             # Create and write the point
             p = Point(topicInflux_temperatura).field("outdoor", response_temperaturaEsterna_value)
             write_api.write(bucket=bucket, org=org, record=p)
             print("Temperature value stored on database InfluxDB\n")
+
+
+        # Evaluation (latency)
+        currentTime = datetime.datetime.now()
+        if ((not evalutationLatencyDone)
+            and ((currentTime - startTime).total_seconds() > 3600)):        # Se e' passata un'ora dall'inizio
+            print("[%s]  EVALUATION - Mean latency (of last hour):   %d millis  [%d, %d]\n" % (currentTime.strftime('%H:%M:%S'), sommaValoriLatenza / numValoriLatenza, minLatenza, maxLatenza))
+            evalutationLatencyDone = True
 
 
         waitSec = 5

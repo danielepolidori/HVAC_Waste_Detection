@@ -218,7 +218,7 @@ while True:
         write_api.write(bucket=bucket, org=org, record=p_forecastIndoor_yhatUp)
 
         print("\n\n\nFORECASTED indoor temperature value stored on database InfluxDB")
-        print("(forecasted: %0.2f [%0.2f, %0.2f])\n" % (forecastIndoor_yhat, forecastIndoor_yhatLow, forecastIndoor_yhatUp))         # Evaluation
+        print("(forecasted:   %0.2f  [%0.2f, %0.2f])\n" % (forecastIndoor_yhat, forecastIndoor_yhatLow, forecastIndoor_yhatUp))         # Evaluation
         printedForecastedIndoor = True
 
 
@@ -245,7 +245,7 @@ while True:
         if not printedForecastedIndoor:
             print("\n\n")
         print("FORECASTED outdoor temperature value stored on database InfluxDB")
-        print("(forecasted: %0.2f [%0.2f, %0.2f])" % (forecastOutdoor_yhat, forecastOutdoor_yhatLow, forecastOutdoor_yhatUp))       # Evaluation
+        print("(forecasted:   %0.2f  [%0.2f, %0.2f])" % (forecastOutdoor_yhat, forecastOutdoor_yhatLow, forecastOutdoor_yhatUp))       # Evaluation
 
 
         index_forecastOutdoor = index_forecastOutdoor + 1
