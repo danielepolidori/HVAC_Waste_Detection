@@ -59,13 +59,13 @@ const char* IP_MQTT_BROKER = "192.168.212.12";    // Indirizzo IP del mio pc con
 
 // Temperatura interna
 float tempInterna = 0;                                    // Aggiornata periodicamente raccogliendo nuovi dati dal sensore DHT interno
-bool reading_dhtInterno = false; //true;                  // Start/stop the sensor reading
+bool reading_dhtInterno = false;                          // Inizialmente l'ESP non raccoglie dati di temperatura (soltanto il primo, per istanziare la variabile)
 long samplingRate_dhtInterno = DEFAULT_SENSE_FREQUENCY;   // Intervallo tra le letture del sensore
 unsigned long previousMillis_dhtInterno = 0;              // Will store last time temperature was read      // Generally, you should use "unsigned long" for variables that hold time (the value will quickly become too large for an int to store)
 
 // Temperatura esterna
 float tempEsterna = 0;                                    // Aggiornata periodicamente raccogliendo nuovi dati dal sensore DHT esterno
-bool reading_dhtEsterno = false; //true;                  // Start/stop the sensor reading
+bool reading_dhtEsterno = false;                          // Inizialmente l'ESP non raccoglie dati di temperatura (soltanto il primo, per istanziare la variabile)
 long samplingRate_dhtEsterno = DEFAULT_SENSE_FREQUENCY;   // Intervallo tra le letture del sensore
 unsigned long previousMillis_dhtEsterno = 0;              // Will store last time temperature was read      // Generally, you should use "unsigned long" for variables that hold time (the value will quickly become too large for an int to store)
 
