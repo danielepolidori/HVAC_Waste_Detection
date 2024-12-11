@@ -16,7 +16,7 @@ logging.basicConfig(level=logging.INFO)
 
 async def main():
 
-    ip_coap_server = "192.168.96.4"    # Indirizzo IP dell'ESP
+    ip_coap_server = "192.168.150.4"    # Indirizzo IP dell'ESP
 
 
     # Topic #

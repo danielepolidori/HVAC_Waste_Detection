@@ -43,9 +43,11 @@ write_api = client_influx.write_api()
 
 
 # Query di tutte le temperature presenti sul DB
+startingDate = "2024-11-15T08:00:00Z"       # Inizio raccolta dati
+#startingDate = "2024-11-19T15:33:00Z"      # Inizio test "estate"
 freqDataAggregation = "15s"
 query_allTemperatures = 'from(bucket: "' + bucket + '")' \
-                        '|> range(start: 2024-11-19T15:33:00Z)' \
+                        '|> range(start: ' + startingDate + ')' \
                         '|> filter(fn: (r) => r._measurement == "' + topicInflux_temperatura + '")' \
                         '|> aggregateWindow(every: ' + freqDataAggregation + ', fn: mean, createEmpty: false)'
 
