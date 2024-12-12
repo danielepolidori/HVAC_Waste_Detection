@@ -26,7 +26,7 @@ In this report, I show the components and the structure of the system I've reali
 
 \section{Project’s Architecture}
 The system is composed by an ESP-WROOM-32 board linked to two DHT22 sensors (one placed inside the house and one outside) and to a LED.\\
-The board periodically collects indoor and outdoor temperature values. They are constantly analysed: if the indoor temperature values rapidly change (approaching the values of outdoor one) the LED is temporarily turned on, thus showing an alarm signal to the user. In this way, if the temperature change is caused by, e.g., an open window, you can save unnecessary HVAC waste. At the beginning, based on all past data, the system predicts some future temperature values.\\
+The board periodically collects indoor and outdoor temperature values. They are constantly analysed: if the indoor temperature values rapidly change (approaching the values of outdoor one) the LED is temporarily turned on, thus showing an alarm signal to the user. In this way, if the temperature change is caused by, e.g., an open window, you can save unnecessary HVAC waste. At the beginning, based on all past temperature data, the system predicts some future temperature values.\\
 The collected temperature data are continuously sent to a gateway, that stores them, together with the alarm triggers and the forecasted temperature values, on a local time-series database. All data are interactively visualized by a local web application, that shows them by means of charts.
 
 
@@ -60,43 +60,39 @@ The collected temperature values, together with the forecasted ones, and the cou
 \section{Results}
 
 \subsection{Setup}
-% ogni quanto raccolgo temperature con esp, ogni quanto py le chiede (e le analizza)
-% aggregateWindow (freq e mean) per il forecast e per l'allarme
-% valori per l'eval (soglia varianza, tempi forecast, tempi queries)
-...
+To evaluate the performance of the system, I've experimented the following setup.\\
+The data proxy application sets the indoor sensor to collect data every 3 seconds and the outdoor one every 20 seconds; it asks for them every 5 seconds. The mean network latency is evaluated after [an / 1] hour from the [start / beginning].\\
+The data analytics script initially retrieves all temperature data from the database, for the forecasting, aggregating them every 15 seconds by the mean function: in this way, it gets more than 8000 indoor temperature values and as many outdoor. The application makes a prediction about the temperature of the next hour: it forecasts a value every 10 minutes, for 6 times. Every 30 seconds, the script retrieves the temperature values of the latest 2 minutes, without aggregating them, for the alarm check: the threshold, seen in \eqref{eq_varianza}, is [$0.03$].
 
-\subsection{Evaluation}
+\subsection{[Evaluation / Experiment]}
 % tabelle eval forecast e latency
 %  considerazioni sui risultati
 % considerazioni sul setup
+% Limiti (acquisizione irregolare dati)
+% sviluppi futuri
 ...
 % Tab.~\ref{tab_forecast_indoor}
-
-\subsection{???}
-% sviluppi futuri
-% Limiti (acquisizione irregolare dati)
-...
 
 \begin{table}[htbp]
 \caption{Indoor Forecast Evaluation}
 \begin{center}
-\begin{tabular}{|c|c|c|c|}
+\begin{tabular}{|c|c|c|c|c|}
 \hline
-\textbf{Observed}&\multicolumn{3}{|c|}{\textbf{Forecasted Values}} \\
-\cline{2-4} 
-\textbf{Value} & \textbf{\textit{yhat}}& \textbf{\textit{yhat\_lower}}& \textbf{\textit{yhat\_upper}} \\
+\textbf{Current} & \textbf{Observed} & \multicolumn{3}{|c|}{\textbf{Forecasted Value}} \\
+\cline{3-5}
+\textbf{Time} & \textbf{Value} & \textbf{\textit{yhat}} & \textbf{\textit{yhat lower}} & \textbf{\textit{yhat upper}} \\
 \hline
-. & . & . & . \\
+. & . & . & . & . \\
 \hline
-. & . & . & . \\
+. & . & . & . & . \\
 \hline
-. & . & . & . \\
+. & . & . & . & . \\
 \hline
-. & . & . & . \\
+. & . & . & . & . \\
 \hline
-. & . & . & . \\
+. & . & . & . & . \\
 \hline
-. & . & . & . \\
+. & . & . & . & . \\
 \hline
 \end{tabular}
 \label{tab_forecast_indoor}
@@ -111,16 +107,6 @@ The collected temperature values, together with the forecasted ones, and the cou
 \textbf{Observed}&\multicolumn{3}{|c|}{\textbf{Forecasted Values}} \\
 \cline{2-4} 
 \textbf{Value} & \textbf{\textit{yhat}}& \textbf{\textit{yhat\_lower}}& \textbf{\textit{yhat\_upper}} \\
-\hline
-. & . & . & . \\
-\hline
-. & . & . & . \\
-\hline
-. & . & . & . \\
-\hline
-. & . & . & . \\
-\hline
-. & . & . & . \\
 \hline
 copy& More$^{\mathrm{a}}$& &  \\
 \hline

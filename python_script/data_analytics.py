@@ -44,7 +44,7 @@ write_api = client_influx.write_api()
 
 # Query di tutte le temperature presenti sul DB
 startingDate = "2024-11-15T08:00:00Z"       # Inizio raccolta dati
-#startingDate = "2024-11-19T15:33:00Z"      # Inizio test "estate"
+#startingDate = "2024-11-19T15:33:00Z"      # Inizio "estate-fake"
 freqDataAggregation = "15s"
 query_allTemperatures = 'from(bucket: "' + bucket + '")' \
                         '|> range(start: ' + startingDate + ')' \
