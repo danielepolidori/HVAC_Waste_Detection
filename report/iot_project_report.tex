@@ -27,51 +27,108 @@ In this report, I show the components and the structure of the system I've reali
 \section{Project’s Architecture}
 The system is composed by an ESP-WROOM-32 board linked to two DHT22 sensors (one placed inside the house and one outside) and to a LED.\\
 The board periodically collects indoor and outdoor temperature values. They are constantly analysed: if the indoor temperature values rapidly change (approaching the values of outdoor one) the LED is temporarily turned on, thus showing an alarm signal to the user. In this way, if the temperature change is caused by, e.g., an open window, you can save unnecessary HVAC waste. At the beginning, based on all past data, the system predicts some future temperature values.\\
-The temperature data collected are continuously sent to a gateway, that stores them, together with the alarm triggers and the forecasted temperature values, on a local time-series database. All data are interactively visualized by a local web application, that shows them by means of charts.
+The collected temperature data are continuously sent to a gateway, that stores them, together with the alarm triggers and the forecasted temperature values, on a local time-series database. All data are interactively visualized by a local web application, that shows them by means of charts.
 
 
 \section{Project’s Implementation}
 
 \subsection{Data acquisition}
 I made the \texttt{data\_acquisition.ino} file to program the ESP32 board. I use the \texttt{Thing.CoAP} library to make the board act as a CoAP server and the \texttt{PubSubClient} library to make it act as a MQTT subscriber.\\
-Through the CoAP protocol, the ESP32 is able to send the last indoor and the last outdoor temperature value collected, when asked.\\
+Through the CoAP protocol, the ESP32 is able to send the latest collected indoor and outdoor temperature value, when asked.\\
 Through the MQTT protocol, the board can receive some commands: to start or stop the sensors reading (at the beginning they are off), to change the interval between consecutive sensors readings --- in both cases you can decide for just one of the two sensors --- and to turn on or off the LED. My laptop acts as a MQTT broker, through Mosquitto.
 
 \subsection{Data proxy}
-I made the \texttt{data\_proxy.py} file to create a Python application. I use the \texttt{aiocoap} library to make the script act as a CoAP client, the \texttt{paho-mqtt} library to make it act as a MQTT publisher and the \texttt{influxdb-client} library to store data.\\
-Through the MQTT protocol, initially, the application gives commands to the ESP32 to start the sensors reading and to set their sampling rate.\\
-Through the CoAP protocol, it periodically requests, to the board, the last indoor and the last outdoor temperature value collected. The script continuously stores these temperature values on a local InfluxDB instance.\\
-The network latency, between the temperature value request (to the ESP32) and its reception, is continuously monitored; after a while, the application evaluates the mean latency of this process.
+I made the \texttt{data\_proxy.py} file to create a Python application. I use the \texttt{paho-mqtt} library to make the script act as a MQTT publisher, the \texttt{aiocoap} library to make it act as a CoAP client and the \texttt{influxdb-client} library to store data.\\
+Initially, through the MQTT protocol, the application gives commands, to the ESP32, to start the sensors reading and to set their sampling rate.\\
+Periodically, through the CoAP protocol, the script requests, to the board, the latest collected indoor and outdoor temperature value. It continuously stores these values on a local InfluxDB instance.\\
+The network latency, between the temperature value request (from the application to the ESP32) and its reception, is continuously monitored; after a while, the script evaluates the mean latency of this process.
 
 \subsection{Data analytics}
 I made the \texttt{data\_analytics.py} file to create another Python application. I use the \texttt{influxdb-client} library to get and store data on the database, the \texttt{prophet} library to forecast future temperature values and the \texttt{paho-mqtt} library to make it act as a MQTT publisher.\\
 At the beginning, the script gets all past temperature values from the database to make a prediction of some indoor and outdoor future values. As the forecasted temperature times are reached, the application stores the predicted values on the database.\\
-Ciclically, the application retrieves the latest temperature values from the database and analyses them to check a possible HVAC waste. The alarm goes off if the variance of the latest indoor temperature values is above a certain threshold \eqref{eq_varianza} (i.e. if the indoor temperature is changing rapidly) and if the mean of them is between the farthest of the latest indoor temperature values and the farthest of the latest outdoor ones \eqref{eq_media} (i.e. if the indoor temperature is approaching the outdoor one). Mathematically speaking:
+Ciclically, the application retrieves some of the latest temperature values from the database and analyses them to check a possible HVAC waste. The alarm goes off if the variance of the latest indoor temperature values is above a certain threshold \eqref{eq_varianza} (i.e. if the indoor temperature is changing rapidly) and if the mean of them is between the farthest of the latest indoor temperature values and the farthest of the latest outdoor ones \eqref{eq_media} (i.e. if the indoor temperature is approaching the outdoor one). Mathematically speaking:
 \begin{equation}
 var(i_1, i_2, \dots, i_n) > threshold \label{eq_varianza}
 \end{equation}
 \begin{equation}
 min(i_n, o_n) < mean(i_1, i_2, \dots, i_n) < max(i_n, o_n) \label{eq_media}
 \end{equation}
-where $i$ is the indoor temperature, $o$ is the outdoor temperature and $t_1, t_2, \dots, t_n$ are the latest temperature values retreived: $t_n$ is the farthest and $t_1$ is the newest. In this case, the script stores the alarm event on the database and, through the MQTT protocol, gives the command, to the ESP32, to turn on the LED; when the risk has passed, the script gives the command to turn it off.\\
-The temperature values collected, together with the forecasted ones, and the counting of the alarm events are shown on a local Grafana instance, by means of a dashboard.
+where $i$ is the indoor temperature, $o$ is the outdoor temperature and $t_1, t_2, \dots, t_n$ are the $n$ latest temperature values retreived: $t_n$ is the farthest and $t_1$ is the newest. When the alarm goes off, the script stores the alarm event on the database and, through the MQTT protocol, gives the command, to the ESP32, to turn on the LED; when the risk has passed, the script gives the command to turn it off.\\
+The collected temperature values, together with the forecasted ones, and the counting of the alarm events are shown on a local Grafana instance, by means of a dashboard.
 
 
 \section{Results}
-% SETUP
+
+\subsection{Setup}
 % ogni quanto raccolgo temperature con esp, ogni quanto py le chiede (e le analizza)
 % aggregateWindow (freq e mean) per il forecast e per l'allarme
 % valori per l'eval (soglia varianza, tempi forecast, tempi queries)
-% RISULTATI / EVALUATION (?)
+...
+
+\subsection{Evaluation}
 % tabelle eval forecast e latency
 %  considerazioni sui risultati
 % considerazioni sul setup
-% ... (???)
+...
+% Tab.~\ref{tab_forecast_indoor}
+
+\subsection{???}
 % sviluppi futuri
 % Limiti (acquisizione irregolare dati)
 ...
 
-% \subsection{...}
-% ...
+\begin{table}[htbp]
+\caption{Indoor Forecast Evaluation}
+\begin{center}
+\begin{tabular}{|c|c|c|c|}
+\hline
+\textbf{Observed}&\multicolumn{3}{|c|}{\textbf{Forecasted Values}} \\
+\cline{2-4} 
+\textbf{Value} & \textbf{\textit{yhat}}& \textbf{\textit{yhat\_lower}}& \textbf{\textit{yhat\_upper}} \\
+\hline
+. & . & . & . \\
+\hline
+. & . & . & . \\
+\hline
+. & . & . & . \\
+\hline
+. & . & . & . \\
+\hline
+. & . & . & . \\
+\hline
+. & . & . & . \\
+\hline
+\end{tabular}
+\label{tab_forecast_indoor}
+\end{center}
+\end{table}
+
+\begin{table}[htbp]
+\caption{Outdoor Forecast Evaluation}
+\begin{center}
+\begin{tabular}{|c|c|c|c|}
+\hline
+\textbf{Observed}&\multicolumn{3}{|c|}{\textbf{Forecasted Values}} \\
+\cline{2-4} 
+\textbf{Value} & \textbf{\textit{yhat}}& \textbf{\textit{yhat\_lower}}& \textbf{\textit{yhat\_upper}} \\
+\hline
+. & . & . & . \\
+\hline
+. & . & . & . \\
+\hline
+. & . & . & . \\
+\hline
+. & . & . & . \\
+\hline
+. & . & . & . \\
+\hline
+copy& More$^{\mathrm{a}}$& &  \\
+\hline
+\multicolumn{4}{l}{$^{\mathrm{a}}$Sample of a Table footnote.}
+\end{tabular}
+\label{tab_forecast_outdoor}
+\end{center}
+\end{table}
+
 
 \end{document}

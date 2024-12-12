@@ -151,7 +151,7 @@ while True:
 
     # Controllo un'eventuale dispersione di calore (identificata tramite rapidi cambiamenti di temperatura) #
 
-    sogliaVarianza = 0.02       # Una temperatura costante (in rapido cambiamento) ha una varianza minore (maggiore) di questo valore
+    sogliaVarianza = 0.03       # Una temperatura costante (in rapido cambiamento) ha una varianza minore (maggiore) di questo valore
 
     minTemperaturaIniziale = min(lastIndoorTemperatures[0], firstOutdoorTemperatureOfLastMinutes)
     maxTemperaturaIniziale = max(lastIndoorTemperatures[0], firstOutdoorTemperatureOfLastMinutes)
