@@ -25,9 +25,15 @@ In this report, I show the components and the structure of the system I've reali
 
 
 \section{Project’s Architecture}
-The system is composed by an ESP-WROOM-32 board linked to two DHT22 sensors (one placed inside the house and one outside) and to a LED [FIGURA].\\
+The system is composed by an ESP-WROOM-32 board linked to two DHT22 sensors (one positioned indoor, near air exits, and one outdoor) and to a LED, as in Fig.~\ref{fig_esp}.\\
 The board periodically collects indoor and outdoor temperature values. They are constantly analysed: if the indoor temperature values rapidly change (approaching the outdoor values) the LED is temporarily turned on, thus showing an alarm signal to the user. In this way, if the temperature change is caused by, e.g., an open window, it can be saved unnecessary HVAC waste. At the beginning, based on all past temperature data, the system predicts some future temperature values.\\
 The collected temperature data are continuously sent to a gateway, that stores them, together with the alarm triggers and the forecasted temperature values, on a local time-series database. All data are interactively visualized by a local web application, that shows them by means of charts.
+
+\begin{figure}[htbp]
+\centerline{\includegraphics[scale=0.06]{figures/figure_esp.jpg}}
+\caption{ESP32 board linked to two DHT22 sensors and to a LED.}
+\label{fig_esp}
+\end{figure}
 
 
 \section{Project’s Implementation}
@@ -54,7 +60,7 @@ var(i_1, i_2, \dots, i_n) > threshold \label{eq_varianza}
 min(i_n, o_n) < mean(i_1, i_2, \dots, i_n) < max(i_n, o_n) \label{eq_media}
 \end{equation}
 where $i$ is the indoor temperature, $o$ is the outdoor temperature and $t_1, t_2, \dots, t_n$ are the $n$ latest temperature values retreived: $t_1$ is the newest and $t_n$ is the farthest. When the alarm goes off, the script stores the alarm event on the database and, through the MQTT protocol, gives the command, to the ESP32, to turn on the LED; when the risk has passed, the script gives the command to turn it off.\\
-The collected temperature values, together with the forecasted ones, and the counting of the alarm events are always shown on a local Grafana instance, by means of a dashboard [FIGURA].
+The collected temperature values, together with the forecasted ones, and the counting of the alarm events are always shown on a local Grafana instance, by means of a dashboard, as in Fig.~\ref{fig_grafana}.
 
 
 \section{Results}
@@ -62,12 +68,18 @@ The collected temperature values, together with the forecasted ones, and the cou
 \subsection{Setup}
 To evaluate the performance of the system, I've experimented the following setup.\\
 The data proxy application sets the indoor sensor to collect data every 3 seconds and the outdoor one every 20 seconds; it asks for the latest indoor and outdoor temperature value every 5 seconds. The mean network latency is evaluated after 1 hour from the beginning.\\
-The data analytics script, initially, retrieves all past temperature data from the database, unevenly collected for a month, for the forecasting, aggregating them every 20 seconds by the mean function: in this way, it gets more than 6500 indoor temperature values and as many outdoor. The application makes a prediction about the temperature of the next hour: it forecasts an indoor and an outdoor value every 10 minutes, for 6 times. Furthermore, every 30 seconds, the script retrieves the temperature values of the latest 2 minutes, without aggregating them, for the alarm check: the threshold, seen in \eqref{eq_varianza}, is $0.03$.
+The data analytics script, initially, retrieves all past temperature data from the database, unevenly collected during the past month, for the forecasting, aggregating them every 20 seconds by the mean function: in this way, it gets more than 6500 indoor temperature values and as many outdoor. The application makes a prediction about the temperature of the next hour: it forecasts an indoor and an outdoor value every 10 minutes, for 6 times. Furthermore, every 30 seconds, the script retrieves the temperature values of the latest 2 minutes, without aggregating them, for the alarm check: the threshold, seen in \eqref{eq_varianza}, is $0.03$.
 
 \subsection{Evaluation}
-I started the data proxy application at 11:30 on December 13th and the data analytics script at 12:36. The forecasted temperature values, compared with the observed ones, are shown in Tab.~\ref{tab_forecast_indoor} (the indoor ones) and Tab.~\ref{tab_forecast_outdoor} (the outdoor ones). As observed value, is considered the mean value  of the temperatures collected during the minute before and after the forecasted temperature time. The mean network latency of the data acquisition process was 150 milliseconds, with values ranging from 5 to 421.\\
-The results are pretty good. It can be noticed that the system is a little more reliable in forecasting the indoor temperature. It can be due to the higher sampling rate of the indoor sensor: this choice arises from the fact that it's useful to rapidly detect eventual HVAC waste, while it's not necessary outdoor.\\
-The experiment has limitations: there wasn't many past temperature values available and they were collected unevenly. Furthermore, the ESP32 was positioned in a naive way: it should be arranged in such a way as to avoid direct sunlight.
+I started the data proxy application at 11:30 on December 13th and the data analytics script at 12:36. The forecasted temperature values, compared with the observed ones, are shown in Tab.~\ref{tab_forecast_indoor} (the indoor ones) and Tab.~\ref{tab_forecast_outdoor} (the outdoor ones). It's considered, as observed temperature, the mean value  of the temperatures collected during the minute before and after the forecasted temperature time. The mean network latency of the data acquisition process was $150$ milliseconds, with values ranging from $5$ to $421$.\\
+The results are pretty good. It can be noticed that the system is a little more reliable in forecasting the indoor temperature. It can be due to the higher sampling rate of the indoor sensor: this choice arises from the fact that it's useful to rapidly detect an eventual HVAC waste, while it's not necessary outdoor.\\
+The experiment has limitations: there wasn't many past temperature values available and they were collected unevenly. Furthermore, the ESP32 was positioned in a naive way (Fig.~\ref{fig_esp}): it should be arranged in such a way as to avoid direct sunlight.
+
+\begin{figure}[htbp]
+\centerline{\includegraphics[scale=0.125]{figures/figure_grafana.png}}
+\caption{Dashboard on Grafana, showing the results of the evaluation.}
+\label{fig_grafana}
+\end{figure}
 
 \begin{table}[htbp]
 \caption{Indoor Temperature Forecast Evaluation}
@@ -107,9 +119,9 @@ The experiment has limitations: there wasn't many past temperature values availa
 \hline
 12:46 & $14.50$ °C & $13.27$ °C & $11.49$ °C & $14.97$ °C \\
 \hline
-12:56 & $13.49$ °C & $14.07$ °C & $11.78$ °C & $15.26$ °C \\
+12:56 & $14.07$ °C & $13.49$ °C & $11.78$ °C & $15.26$ °C \\
 \hline
-13:06 & $13.71$ °C & $14.01$ °C & $11.95$ °C & $15.42$ °C \\
+13:06 & $14.01$ °C & $13.71$ °C & $11.95$ °C & $15.42$ °C \\
 \hline
 13:16 & $13.86$ °C & $13.92$ °C & $12.13$ °C & $15.65$ °C \\
 \hline
