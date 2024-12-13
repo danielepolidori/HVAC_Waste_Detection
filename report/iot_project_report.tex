@@ -26,7 +26,7 @@ In this report, I show the components and the structure of the system I've reali
 
 \section{Project’s Architecture}
 The system is composed by an ESP-WROOM-32 board linked to two DHT22 sensors (one placed inside the house and one outside) and to a LED [FIGURA].\\
-The board periodically collects indoor and outdoor temperature values. They are constantly analysed: if the indoor temperature values rapidly change (approaching the outdoor values) the LED is temporarily turned on, thus showing an alarm signal to the user. In this way, if the temperature change is caused by, e.g., an open window, you can save unnecessary HVAC waste. At the beginning, based on all past temperature data, the system predicts some future temperature values.\\
+The board periodically collects indoor and outdoor temperature values. They are constantly analysed: if the indoor temperature values rapidly change (approaching the outdoor values) the LED is temporarily turned on, thus showing an alarm signal to the user. In this way, if the temperature change is caused by, e.g., an open window, it can be saved unnecessary HVAC waste. At the beginning, based on all past temperature data, the system predicts some future temperature values.\\
 The collected temperature data are continuously sent to a gateway, that stores them, together with the alarm triggers and the forecasted temperature values, on a local time-series database. All data are interactively visualized by a local web application, that shows them by means of charts.
 
 
@@ -35,7 +35,7 @@ The collected temperature data are continuously sent to a gateway, that stores t
 \subsection{Data acquisition}
 I made the \texttt{data\_acquisition.ino} file to program the ESP32 board. I use the \texttt{Thing.CoAP} library to make the board act as a CoAP server and the \texttt{PubSubClient} library to make it act as a MQTT subscriber.\\
 Through the CoAP protocol, the ESP32 is able to send the latest collected indoor and outdoor temperature value, when asked.\\
-Through the MQTT protocol, the board can receive some commands: to start or stop the sensors reading (at the beginning they are off), to change the interval between consecutive sensors readings --- in both cases you can decide for just one of the two sensors --- and to turn on or off the LED. My laptop acts as a MQTT broker, through Mosquitto.
+Through the MQTT protocol, the board can receive some commands: to start or stop the sensors reading (at the beginning they are off), to change the interval between consecutive sensors readings --- in both cases, it can be considered just one of the two sensors --- and to turn on or off the LED. My laptop acts as a MQTT broker, through Mosquitto.
 
 \subsection{Data proxy}
 I made the \texttt{data\_proxy.py} file to create a Python application. I use the \texttt{paho-mqtt} library to make the script act as a MQTT publisher, the \texttt{aiocoap} library to make it act as a CoAP client and the \texttt{influxdb-client} library to store data.\\
@@ -62,42 +62,64 @@ The collected temperature values, together with the forecasted ones, and the cou
 \subsection{Setup}
 To evaluate the performance of the system, I've experimented the following setup.\\
 The data proxy application sets the indoor sensor to collect data every 3 seconds and the outdoor one every 20 seconds; it asks for the latest indoor and outdoor temperature value every 5 seconds. The mean network latency is evaluated after 1 hour from the beginning.\\
-The data analytics script, initially, retrieves all past temperature data from the database, unevenly collected for a month, for the forecasting, aggregating them every 20 seconds by the mean function: in this way, it gets more than 6500 indoor temperature values and as many outdoor. The application makes a prediction about the temperature of the next hour: it forecasts an indoor and an outdoor value every 10 minutes, for 6 times. Furthermore, every 30 seconds, the script retrieves the temperature values of the latest 2 minutes, without aggregating them, for the alarm check: the threshold, seen in \eqref{eq_varianza}, is [$0.03$].
+The data analytics script, initially, retrieves all past temperature data from the database, unevenly collected for a month, for the forecasting, aggregating them every 20 seconds by the mean function: in this way, it gets more than 6500 indoor temperature values and as many outdoor. The application makes a prediction about the temperature of the next hour: it forecasts an indoor and an outdoor value every 10 minutes, for 6 times. Furthermore, every 30 seconds, the script retrieves the temperature values of the latest 2 minutes, without aggregating them, for the alarm check: the threshold, seen in \eqref{eq_varianza}, is $0.03$.
 
 \subsection{Evaluation}
-%  considerazioni sui risultati
-% considerazioni sul setup
-% Limiti (acquisizione irregolare dati)
-% sviluppi futuri
-I started the data proxy application at [11:30] [on December 13th] and then, at [11:34], I started the data analytics script.\\
-The forecasted temperature values, compared with the observed ones, are shown in Tab.~\ref{tab_forecast_indoor} (the indoor ones) and Tab.~\ref{tab_forecast_outdoor} (the outdoor ones). The mean network latency was [VAL] milliseconds, with values ranging from [VAL] to [VAL].\\
-We can notice that
-...
+I started the data proxy application at 11:30 on December 13th and the data analytics script at 12:36. The forecasted temperature values, compared with the observed ones, are shown in Tab.~\ref{tab_forecast_indoor} (the indoor ones) and Tab.~\ref{tab_forecast_outdoor} (the outdoor ones). As observed value, is considered the mean value  of the temperatures collected during the minute before and after the forecasted temperature time. The mean network latency of the data acquisition process was 150 milliseconds, with values ranging from 5 to 421.\\
+The results are pretty good. It can be noticed that the system is a little more reliable in forecasting the indoor temperature. It can be due to the higher sampling rate of the indoor sensor: this choice arises from the fact that it's useful to rapidly detect eventual HVAC waste, while it's not necessary outdoor.\\
+The experiment has limitations: there wasn't many past temperature values available and they were collected unevenly. Furthermore, the ESP32 was positioned in a naive way: it should be arranged in such a way as to avoid direct sunlight.
 
 \begin{table}[htbp]
-\caption{Indoor Forecast Evaluation}
+\caption{Indoor Temperature Forecast Evaluation}
 \begin{center}
-\begin{tabular}{|c|c|c|c|c|}
+\begin{tabular}{|r|c|c|c|c|}
 \hline
-\textbf{Current} & \textbf{Observed} & \multicolumn{3}{|c|}{\textbf{Forecasted Value}} \\
+\textbf{Current} & \textbf{Observed} & \multicolumn{3}{|c|}{\textbf{Forecasted Temperature}} \\
 \cline{3-5}
-\textbf{Time} & \textbf{Value}$^{\mathrm{a}}$ & \textbf{\textit{yhat}} & \textbf{\textit{yhat lower}} & \textbf{\textit{yhat upper}} \\
+\textbf{Time} & \textbf{Temperature}$^{\mathrm{a}}$ & \textbf{\textit{yhat}} & \textbf{\textit{yhat lower}} & \textbf{\textit{yhat upper}} \\
 \hline
-11:44 & . & . & . & . \\
+12:46 & $21.04$ °C & $21.17$ °C & $19.99$ °C & $22.25$ °C \\
 \hline
-. & . & . & . & . \\
+12:56 & $20.88$ °C & $21.07$ °C & $19.98$ °C & $22.24$ °C \\
 \hline
-. & . & . & . & . \\
+13:06 & $20.85$ °C & $20.95$ °C & $19.88$ °C & $22.06$ °C \\
 \hline
-. & . & . & . & . \\
+13:16 & $20.63$ °C & $20.81$ °C & $19.69$ °C & $21.90$ °C \\
 \hline
-. & . & . & . & . \\
+13:26 & $20.42$ °C & $20.66$ °C & $19.66$ °C & $21.77$ °C \\
 \hline
-. & . & . & . & . \\
+13:36 & $20.13$ °C & $20.52$ °C & $19.43$ °C & $21.67$ °C \\
 \hline
-\multicolumn{4}{l}{$^{\mathrm{a}}$Is the mean value of...}
+\multicolumn{4}{l}{$^{\mathrm{a}}$Mean temperature value (of the 2 minutes around).}
 \end{tabular}
 \label{tab_forecast_indoor}
+\end{center}
+\end{table}
+
+\begin{table}[htbp]
+\caption{Outdoor Temperature Forecast Evaluation}
+\begin{center}
+\begin{tabular}{|r|c|c|c|c|}
+\hline
+\textbf{Current} & \textbf{Observed} & \multicolumn{3}{|c|}{\textbf{Forecasted Temperature}} \\
+\cline{3-5}
+\textbf{Time} & \textbf{Temperature}$^{\mathrm{a}}$ & \textbf{\textit{yhat}} & \textbf{\textit{yhat lower}} & \textbf{\textit{yhat upper}} \\
+\hline
+12:46 & $14.50$ °C & $13.27$ °C & $11.49$ °C & $14.97$ °C \\
+\hline
+12:56 & $13.49$ °C & $14.07$ °C & $11.78$ °C & $15.26$ °C \\
+\hline
+13:06 & $13.71$ °C & $14.01$ °C & $11.95$ °C & $15.42$ °C \\
+\hline
+13:16 & $13.86$ °C & $13.92$ °C & $12.13$ °C & $15.65$ °C \\
+\hline
+13:26 & $13.98$ °C & $14.09$ °C & $12.21$ °C & $15.91$ °C \\
+\hline
+13:36 & $14.40$ °C & $14.21$ °C & $12.49$ °C & $16.09$ °C \\
+\hline
+\multicolumn{4}{l}{$^{\mathrm{a}}$Mean temperature value (of the 2 minutes around).}
+\end{tabular}
+\label{tab_forecast_outdoor}
 \end{center}
 \end{table}
 
