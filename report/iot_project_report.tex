@@ -7,32 +7,42 @@
 \usepackage{textcomp}
 \usepackage{xcolor}
 
+\usepackage{url}    % Per creare url
+
 
 \begin{document}
 
-\title{Project report - Internet of things}
+\title{HVAC Waste Detection - Project Report}
 
 \author{\IEEEauthorblockN{Daniele Polidori}
-\IEEEauthorblockA{\textit{University of Bologna}\\
+\IEEEauthorblockA{\textit{Course of Internet of things}\\
+\textit{University of Bologna}\\
+academic year 2023-24\\
 daniele.polidori2@studio.unibo.it}}
 
 \maketitle
 
 
 \section{Introduction}
-I implemented an IoT system that monitors the temperature of an house, to prevent useless HVAC consumption, detecting it by rapid temperature changes. Reducing energy usage has good environmental reasons and also saves money on the bills.\\
+I implemented an IoT system that monitors the temperature of an house, to prevent useless HVAC consumption, detecting it by rapid temperature changes\footnote{\url{https://github.com/danielepolidori/HVAC_Waste_Detection}}. Reducing energy usage has good environmental reasons and also saves money on the bills.\\
 In this report, I show the components and the structure of the system I've realized. Then I show the experimental setup and the consequent results I've obtained; at the end, I present some thoughts on them.
 
 
 \section{Project’s Architecture}
 The system is composed by an ESP-WROOM-32 board linked to two DHT22 sensors (one positioned indoor, near air exits, and one outdoor) and to a LED, as in Fig.~\ref{fig_esp}.\\
 The board periodically collects indoor and outdoor temperature values. They are constantly analysed: if the indoor temperature values rapidly change (approaching the outdoor values) the LED is temporarily turned on, thus showing an alarm signal to the user. In this way, if the temperature change is caused by, e.g., an open window, it can be saved unnecessary HVAC waste. At the beginning, based on all past temperature data, the system predicts some future temperature values.\\
-The collected temperature data are continuously sent to a gateway, that stores them, together with the alarm triggers and the forecasted temperature values, on a local time-series database. All data are interactively visualized by a local web application, that shows them by means of charts.
+The collected temperature data are continuously sent to a gateway, that stores them, together with the alarm triggers and the forecasted temperature values, on a local time-series database. All data are interactively visualized by a local web application, that shows them by means of charts, as in Fig.~\ref{fig_grafana}.
 
 \begin{figure}[htbp]
 \centerline{\includegraphics[scale=0.06]{figures/figure_esp.jpg}}
 \caption{ESP32 board linked to two DHT22 sensors and to a LED.}
 \label{fig_esp}
+\end{figure}
+
+\begin{figure}[htbp]
+\centerline{\includegraphics[scale=0.125]{figures/figure_grafana.png}}
+\caption{Dashboard on Grafana, showing the collected data.}
+\label{fig_grafana}
 \end{figure}
 
 
@@ -71,15 +81,9 @@ The data proxy application sets the indoor sensor to collect data every 3 second
 The data analytics script, initially, retrieves all past temperature data from the database, unevenly collected during the past month, for the forecasting, aggregating them every 20 seconds by the mean function: in this way, it gets more than 6500 indoor temperature values and as many outdoor. The application makes a prediction about the temperature of the next hour: it forecasts an indoor and an outdoor value every 10 minutes, for 6 times. Furthermore, every 30 seconds, the script retrieves the temperature values of the latest 2 minutes, without aggregating them, for the alarm check: the threshold, seen in \eqref{eq_varianza}, is $0.03$.
 
 \subsection{Evaluation}
-I started the data proxy application at 11:30 on December 13th and the data analytics script at 12:36. The forecasted temperature values, compared with the observed ones, are shown in Tab.~\ref{tab_forecast_indoor} (the indoor ones) and Tab.~\ref{tab_forecast_outdoor} (the outdoor ones). It's considered, as observed temperature, the mean value  of the temperatures collected during the minute before and after the forecasted temperature time. The mean network latency of the data acquisition process was $150$ milliseconds, with values ranging from $5$ to $421$.\\
-The results are pretty good. It can be noticed that the system is a little more reliable in forecasting the indoor temperature. It can be due to the higher sampling rate of the indoor sensor: this choice arises from the fact that it's useful to rapidly detect an eventual HVAC waste, while it's not necessary outdoor.\\
+I started the data proxy application at 11:30 on December 13th and the data analytics script at 12:36. The forecasted temperature values, compared with the observed ones, are shown in Tab.~\ref{tab_forecast_indoor} (the indoor ones), in Tab.~\ref{tab_forecast_outdoor} (the outdoor ones) and in Fig.~\ref{fig_grafana}. It's considered, as observed temperature, the mean value  of the temperatures collected during the minute before and after the forecasted temperature time. The mean network latency of the data acquisition process was $150$ milliseconds, with values ranging from $5$ to $421$.\\
+The results are pretty good: the forecasted values differ from the observed ones by a maximum of $0.39$ °C for the indoor temperature and of $1.23$ °C for the outdoor one; in any case they are always within the forecasted range. The system is a little more reliable in forecasting the indoor temperature. It can be due to the higher sampling rate of the indoor sensor: this choice arises from the fact that it's useful in order to rapidly detect an eventual HVAC waste, while it's unnecessary outdoor.\\
 The experiment has limitations: there wasn't many past temperature values available and they were collected unevenly. Furthermore, the ESP32 was positioned in a naive way (Fig.~\ref{fig_esp}): it should be arranged in such a way as to avoid direct sunlight.
-
-\begin{figure}[htbp]
-\centerline{\includegraphics[scale=0.125]{figures/figure_grafana.png}}
-\caption{Dashboard on Grafana, showing the results of the evaluation.}
-\label{fig_grafana}
-\end{figure}
 
 \begin{table}[htbp]
 \caption{Indoor Temperature Forecast Evaluation}
