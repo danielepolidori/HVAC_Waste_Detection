@@ -57,7 +57,7 @@ Through the MQTT protocol, the board can receive some commands: to start or stop
 I made the \texttt{data\_proxy.py} file to create a Python application. I use the \texttt{paho-mqtt} library to make the script act as a MQTT publisher, the \texttt{aiocoap} library to make it act as a CoAP client and the \texttt{influxdb-client} library to store data.\\
 Initially, through the MQTT protocol, the application gives commands, to the ESP32, to start the sensors reading and to set their sampling rate.\\
 Periodically, through the CoAP protocol, the script requests, to the board, the latest collected indoor and outdoor temperature value. It continuously stores these values on a local InfluxDB instance.\\
-The network latency, between the temperature value request (from the application to the ESP32) and its reception, is continuously monitored; after a while, the script evaluates the mean latency of this process.
+The network latency, between the temperature value request (from the application to the ESP32) and its reception, is continuously monitored; after a while from the beginning, the script evaluates the mean latency of this process.
 
 \subsection{Data analytics}
 I made the \texttt{data\_analytics.py} file to create another Python application. I use the \texttt{influxdb-client} library to get and store data on the database, the \texttt{prophet} library to forecast future temperature values and the \texttt{paho-mqtt} library to make it act as a MQTT publisher.\\

@@ -26,9 +26,9 @@
 %\addtocounter{framenumber}{-1}     % Non considera questa slide nel conteggio delle pagine
 
 
-\begin{frame}{Introduction}
+\begin{frame}{IoT system}
 
-	I realized an IoT system that monitors the temperature of an house, to prevent useless HVAC consumption, detecting it by rapid temperature changes.
+	It monitors the temperature of an house, to prevent useless HVAC consumption, detecting it by rapid temperature changes.
 	
 	\vfill
 
@@ -36,17 +36,17 @@
 
 		\begin{columns}[onlytextwidth,T]
 		
-			\column{\dimexpr\linewidth-50mm-5mm}
+			\column{\dimexpr\linewidth-60mm-5mm}
 
-			Composed by an \textbf{ESP-WROOM-32} board\\linked to:
+			Composed by an \textbf{ESP-WROOM-32} board linked to:
 			\begin{itemize}
-				\item 1 \textbf{indoor DHT22} sensor,
-				\item 1 \textbf{outdoor DHT22} sensor,
+				\item 1 \textbf{indoor DHT22},
+				\item 1 \textbf{outdoor DHT22},
 				\item 1 \textbf{LED}.
 			\end{itemize}
 
-			\column{50mm}
-			\includegraphics[scale=0.035]{figures/figure_esp.jpg}
+			\column{60mm}
+			\includegraphics[scale=0.04]{figures/figure_esp.jpg}
 
 		\end{columns}
 	\end{block}
@@ -62,14 +62,14 @@
 
 	\vfill
 
-	Through the CoAP protocol, the ESP32 is able to send the latest collected indoor and outdoor temperature value, when asked.
+	Through CoAP, the ESP32 is able to send the latest collected indoor and outdoor temperature value, when asked.
 
 	\vfill
 
-	Through the MQTT protocol, the board can receive some commands:
+	Through MQTT, the board can receive some commands:
 	\begin{itemize}
 		\item to start or stop the sensors reading,
-		\item to change the interval between consecutive sensors readings,
+		\item to change their sampling rate,
 		\item to turn on or off the LED.
 	\end{itemize}
 	My laptop acts as a MQTT broker, through Mosquitto.
@@ -87,15 +87,16 @@
 
 	\vfill
 
-	Initially, through the MQTT protocol, the application gives commands, to the ESP32, to start the sensors reading and to set their sampling rate.
+	Initially, through MQTT, the application gives commands, to the ESP32, to start the sensors reading and to set their sampling rate.
 	
 	\vfill
 	
-	Periodically, through the CoAP protocol, the script requests, to the board, the latest collected indoor and outdoor temperature value. It continuously stores these values on a local InfluxDB instance.\\
+	Periodically, through CoAP, the script requests, to the board, the latest collected indoor and outdoor temperature value.\\
+	It continuously stores these values on a local InfluxDB instance.
 	
 	\vfill
 	
-	The network latency, between the temperature value request and its reception, is continuously monitored; after a while, the script evaluates the mean latency of this process.
+	The network latency, between the temperature value request and its reception, is continuously monitored and, after a while from the beginning, the mean value is calculated.
 
 \end{frame}
 
@@ -103,19 +104,19 @@
 \begin{frame}{Data analytics - \nth{2} Python script (1/2)}
 
 	\begin{description}[\texttt{influxdb-client}]		% Indico la lunghezza della label piu' lunga, cosi' che siano tutte allineate a dx
-		\item[\texttt{influxdb-client}]: To get and store data on the database.
+		\item[\texttt{influxdb-client}]: To get and store data.
 		\item[\texttt{prophet}]: To forecast future temperature values.
 		\item[\texttt{paho-mqtt}]: To act as a MQTT publisher.
 	\end{description}
 
 	\vfill
 
-	At the beginning, the script gets all past temperature values from the database to make a prediction of some indoor and outdoor future values. As the forecasted temperature times are reached, the application stores the predicted values on the database.
+	At the beginning, the script gets all past temperature values to forecast some indoor and outdoor values.\\As the times are reached, the application stores the predicted values on the database.
 	
 	\vfill
 	
-	Ciclically, the application retrieves some of the latest temperature values from the database and analyses them to check a possible HVAC waste.\\
-	When the alarm goes off, the script stores the alarm event on the database and, through the MQTT protocol, gives the command, to the ESP32, to turn on the LED; when the risk has passed, the script gives the command to turn it off.
+	Ciclically, the application retrieves some of the latest temperature values and analyses them to check a possible HVAC waste.\\
+	When the alarm goes off, the script stores the event on the database and, through MQTT, gives the command, to the ESP32, to turn on the LED; when the risk has passed, the script gives the command to turn it off.
 
 \end{frame}
 
@@ -144,24 +145,66 @@
 
 \begin{frame}{Data visualization}
 
+ 	Local Grafana instance that shows:
 	\begin{block}
 
 		\begin{columns}[onlytextwidth,T]
 		
 			\column{\dimexpr\linewidth-65mm-5mm}
 
-			Local Grafana instance that shows:
 			\begin{itemize}
 				\item the collected temperature values,
 				\item the forecasted ones,
 				\item the counting of the alarm events.
 			\end{itemize}
 
-			\column{68mm}
-			\includegraphics[scale=0.1]{figures/figure_grafana.png}
+			\column{70mm}
+			\includegraphics[scale=0.10]{figures/figure_grafana.png}
 
 		\end{columns}
 	\end{block}
+\end{frame}
+
+
+\begin{frame}{Setup (data proxy)}
+
+	ESP32)
+	\begin{description}[Mean network latency evaluation]
+		\item[Indoor DHT sampling rate]: 3 sec.
+		\item[Outdoor DHT sampling rate]: 20 sec.
+	\end{description}
+	
+	\vfill
+	
+	Data acquisition process)
+	\begin{description}[Mean network latency evaluation]
+		\item[Latest temperatures request]: every 5 sec.
+		\item[Mean network latency evaluation]: after 1 hour.
+	\end{description}
+
+\end{frame}
+
+
+\begin{frame}{Setup (data analytics)}
+
+	Forecast)
+	\begin{description}[Num. of values retreived]
+		\item[Data obtained]: on start.
+		\item[Temperatures collection]: past month (unevenly).
+		\item[aggregateWindow]: every 20 sec (mean function).
+		\item[Num. of values retreived]: 6500 indoor, 6500 outdoor.
+		\item[Forecast]: every 10 min, for 6 times.
+	\end{description}
+	
+	\vfill
+	
+	Alarm)
+	\begin{description}[Num. of values retreived]
+		\item[Data obtained]: every 30 sec.
+		\item[Temperatures collection]: latest 2 min.
+		\item[Alarm threshold \eqref{eq_varianza}]: $0.03$.
+	\end{description}
+
 \end{frame}
 
 
