@@ -78,7 +78,7 @@ The collected temperature values, together with the forecasted ones, and the cou
 \subsection{Setup}
 To evaluate the performance of the system, I've experimented the following setup.\\
 The data proxy application sets the indoor sensor to collect data every 3 seconds and the outdoor one every 20 seconds; it asks for the latest indoor and outdoor temperature value every 5 seconds. The mean network latency is evaluated after 1 hour from the beginning.\\
-The data analytics script, initially, retrieves all past temperature data from the database, unevenly collected during the past month, for the forecasting, aggregating them every 20 seconds by the mean function: in this way, it gets more than 6500 indoor temperature values and as many outdoor. The application makes a prediction about the temperature of the next hour: it forecasts an indoor and an outdoor value every 10 minutes, for 6 times. Furthermore, every 30 seconds, the script retrieves the temperature values of the latest 2 minutes, without aggregating them, for the alarm check: the threshold, seen in \eqref{eq_varianza}, is $0.03$.
+The data analytics script, initially, retrieves all past temperature data from the database, unevenly collected during the past month, for the forecasting, aggregating them every 20 seconds by the mean function: in this way, it gets more than 6500 indoor temperature values and as many outdoor. The application makes a prediction about the temperature of the next hour: it forecasts an indoor and an outdoor value every 10 minutes, for 6 times. Furthermore, every 30 seconds, the script retrieves the temperature values of the latest 2 minutes, without aggregating them, for the alarm check: the threshold, seen in \eqref{eq_varianza}, is $0.03$ $\text{°C}^2$.
 
 \subsection{Evaluation}
 I started the data proxy application at 11:30 on December 13th and the data analytics script at 12:36. The forecasted temperature values, compared with the observed ones, are shown in Tab.~\ref{tab_forecast_indoor} (the indoor ones), in Tab.~\ref{tab_forecast_outdoor} (the outdoor ones) and in Fig.~\ref{fig_grafana}. It's considered, as observed temperature, the mean value  of the temperatures collected during the minute before and after the forecasted temperature time. The mean network latency of the data acquisition process was $150$ milliseconds, with values ranging from $5$ to $421$.\\
@@ -88,11 +88,12 @@ The experiment has limitations: there wasn't many past temperature values availa
 \begin{table}[htbp]
     \caption{Indoor Temperature Forecast Evaluation}
     \begin{center}
-        \begin{tabular}{|r|c|c|c|c|}
+        \begin{tabular}{|r||c||c|c|c|}
             \hline
             \textbf{Current} & \textbf{Observed}$^{\mathrm{a}}$ & \multicolumn{3}{|c|}{\textbf{Forecasted Temperature (°C)}} \\
             \cline{3-5}
             \textbf{Time} & \textbf{Temperature (°C)} & \textbf{\textit{yhat}} & \textbf{\textit{yhat lower}} & \textbf{\textit{yhat upper}} \\
+            \hline
             \hline
             12:46 & $21.04$ & \textbf{21.17} & $19.99$ & $22.25$ \\
             \hline
@@ -115,11 +116,12 @@ The experiment has limitations: there wasn't many past temperature values availa
 \begin{table}[htbp]
     \caption{Outdoor Temperature Forecast Evaluation}
     \begin{center}
-        \begin{tabular}{|r|c|c|c|c|}
+        \begin{tabular}{|r||c||c|c|c|}
             \hline
             \textbf{Current} & \textbf{Observed}$^{\mathrm{a}}$ & \multicolumn{3}{|c|}{\textbf{Forecasted Temperature (°C)}} \\
             \cline{3-5}
             \textbf{Time} & \textbf{Temperature (°C)} & \textbf{\textit{yhat}} & \textbf{\textit{yhat lower}} & \textbf{\textit{yhat upper}} \\
+            \hline
             \hline
             12:46 & $14.50$ & $13.27$ & $11.49$ & \textbf{14.97} \\
             \hline
