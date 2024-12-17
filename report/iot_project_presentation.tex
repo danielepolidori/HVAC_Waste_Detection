@@ -116,17 +116,17 @@
 	\vfill
 	
 	\textbf{Ciclically}, the application retrieves some of the latest temperature values and \textbf{analyses} them to check a possible HVAC waste.\\
-	When the alarm \textbf{goes off}, the script \textbf{stores} the event on the database and, through \textbf{MQTT}, gives the command, to the ESP32, to turn on the \textbf{LED}; when the risk has passed, the script gives the command to turn it off.
+	When the alarm \textbf{goes off}, the script \textbf{stores} the event on the database and, through \textbf{MQTT}, gives the command, to the ESP32, to turn on the \textbf{LED} (and, then, off).
 
 \end{frame}
 
 
 \begin{frame}{Data analytics - \nth{2} Python script (2/2)}
 
-	The alarm \textbf{goes off} if:
+	The alarm \textbf{goes off} if the \textbf{indoor} temperature:
 	\begin{itemize}
-		\item the indoor temperature is \textbf{changing} rapidly \eqref{eq_varianza} and
-		\item the indoor temperature is \textbf{approaching} the outdoor one \eqref{eq_media}.
+		\item is \textbf{changing} rapidly \eqref{eq_varianza} and
+		\item is \textbf{approaching} the outdoor one \eqref{eq_media}.
 	\end{itemize}
 	
 	\vfill
@@ -169,17 +169,17 @@
 \begin{frame}{Setup - Data proxy}
 
 	ESP32)
-	\begin{description}[Mean network latency evaluation]
-		\item[\textbf{Indoor} DHT sampling rate]: 3 sec.
-		\item[\textbf{Outdoor} DHT sampling rate]: 20 sec.
+	\begin{description}[Mean network \textbf{latency} evaluation]
+		\item[\textbf{Indoor} DHT sampling rate]: 3 sec
+		\item[\textbf{Outdoor} DHT sampling rate]: 20 sec
 	\end{description}
 	
 	\vfill
 	
 	Data acquisition process)
-	\begin{description}[Mean network latency evaluation]
-		\item[Latest \textbf{temperatures} request]: every 5 sec.
-		\item[Mean network \textbf{latency} evaluation]: after 1 hour.
+	\begin{description}[Mean network \textbf{latency} evaluation]
+		\item[Latest \textbf{temperatures} request]: every 5 sec
+		\item[Mean network \textbf{latency} evaluation]: after 1 hour
 	\end{description}
 
 \end{frame}
@@ -188,21 +188,21 @@
 \begin{frame}{Setup - Data analytics}
 
 	Forecast)
-	\begin{description}[Num. of values retreived]
-		\item[Data \textbf{obtained}]: on start.
-		\item[Temperatures \textbf{collection}]: past month (unevenly).
-		\item[\textbf{aggregate}Window]: every 20 sec (mean function).
-		\item[Num. of values \textbf{retreived}]: 6500 indoor, 6500 outdoor.
-		\item[Values \textbf{forecasted}]: every 10 min, for 6 times.
+	\begin{description}[Num. of values \textbf{retreived}]
+		\item[Data \textbf{obtained}]: on start
+		\item[Temperatures \textbf{collection}]: past month (unevenly)
+		\item[\textbf{aggregate}Window]: every 20 sec (mean function)
+		\item[Num. of values \textbf{retreived}]: 6500 indoor, 6500 outdoor
+		\item[Values \textbf{forecasted}]: every 10 min, for 6 times
 	\end{description}
 	
 	\vfill
 	
 	Alarm)
-	\begin{description}[Num. of values retreived]
-		\item[Data \textbf{obtained}]: every 30 sec.
-		\item[Temperatures \textbf{collection}]: latest 2 min.
-		\item[Alarm \textbf{threshold} \eqref{eq_varianza}]: $0.03$ $^\circ \text{C}^2$.
+	\begin{description}[Num. of values \textbf{retreived}]
+		\item[Data \textbf{obtained}]: every 30 sec
+		\item[Temperatures \textbf{collection}]: latest 2 min
+		\item[Alarm \textbf{threshold} \eqref{eq_varianza}]: $0.03$ $^\circ \text{C}^2$
 	\end{description}
 
 \end{frame}
@@ -210,23 +210,23 @@
 
 \begin{frame}{Evaluation}
 
-	\begin{description}[Mean network latency]
-		\item[Day]: on December 13th.
-		\item[Data \textbf{proxy} started]: at 11:30.
-		\item[Data \textbf{analytics} started]: at 12:36.
+	\begin{description}[Data \textbf{analytics} started]
+		\item[Day]: December 13th
+		\item[Data \textbf{proxy} started]: at 11:30
+		\item[Data \textbf{analytics} started]: at 12:36
 	\end{description}
 	
 	\vfill
 	
-	\begin{description}[Mean network latency]
-		\item[Mean network \textbf{latency}]: $150$ millis (ranging from $5$ to $421$).
+	\begin{description}[Data \textbf{analytics} started]
+		\item[Mean network \textbf{latency}]: $150$ millis (ranging from $5$ to $421$)
 	\end{description}
 	
 	\vfill
 	
-	\begin{description}[Max difference outdoor forecasted-observed]
-		\item[Max difference \textbf{indoor} forecasted-observed]: $0.39$ °C.
-		\item[Max difference \textbf{outdoor} forecasted-observed]: $1.23$ °C.
+	\begin{description}[Max difference \textbf{outdoor} forecasted-observed]
+		\item[Max difference \textbf{indoor} forecasted-observed]: $0.39$ °C
+		\item[Max difference \textbf{outdoor} forecasted-observed]: $1.23$ °C
 	\end{description}
 	(Always within the forecasted range.)
 
